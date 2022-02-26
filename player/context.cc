@@ -12,6 +12,8 @@ extern "C" {
 namespace live {
 namespace player {
 
+#if 0
+
 bool Context::InitLocalFileReader(const std::string &path) {
   try {
     reader_.reset(new LocalFileReader(path));
@@ -798,6 +800,8 @@ Context::~Context() {
   DestroyWindow();
   SDL_Quit();
 }
+
+#endif
 
 }
 }
