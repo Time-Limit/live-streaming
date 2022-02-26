@@ -1,3 +1,5 @@
+#pragma once
+
 #include <string>
 #include <fstream>
 #include <cstdint>
@@ -13,13 +15,15 @@ class Reader {
   * @return 成功则返回写入缓冲区的字节数，否则返回一个 AVERROR 对应的负数
   */
   virtual int Read(uint8_t *buf, int size) = 0;
+  virtual int64_t Seek(int64_t offset, int whence) = 0;
 
   virtual ~Reader() = default;
 };
 
 class LocalFileReader : public Reader {
   std::string path_;
-  std::ifstream file_; //二进制读方式打开
+  std::ifstream file_; // 二进制读方式打开
+  int64_t file_size_;
  public:
  /*
   * @param p 本地文件的路径
@@ -28,6 +32,7 @@ class LocalFileReader : public Reader {
   LocalFileReader(const std::string &p);
 
   int Read(uint8_t *buf, int size) override;
+  int64_t Seek(int64_t offset, int whence) override;
 };
 
 }
