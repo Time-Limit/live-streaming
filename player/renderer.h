@@ -43,6 +43,10 @@ class Renderer {
     submit_queue_.Put(std::move(frame));
   }
 
+  bool HasPendingData() const {
+    return submit_queue_.Size();
+  }
+
   void Stop() { is_stop_ = true; }
   bool IsStop() { return is_stop_; }
 

@@ -10,6 +10,4 @@ player-client:
 		-lgflags -lavutil -lavcodec -lavdevice -lavformat -lavfilter -lswscale \
 		-lz -lswresample -llzma -liconv -lspeex -lmp3lame -lbz2 -lSDL2 \
 		-framework AudioToolBox -framework VideoToolbox -framework CoreFoundation -framework CoreMedia -framework CoreVideo -framework CoreServices -framework Security\
-		-I./
-
-
+		-I. -O3

@@ -55,7 +55,11 @@ class Speaker {
     submit_queue_.Put(std::move(sample));
   }
 
-  void Stop();
+  bool HasPendingData() const {
+    return sample_queue_.Size();
+  }
+
+  void Stop() { is_stop_ = true; }
   bool IsStop() { return is_stop_; }
 };
 

@@ -124,6 +124,27 @@ class Queue {
     return true;
   }
 
+  bool Get(T *t) {
+    bool need_notify_get = false;
+    bool need_notify_put = false;
+    {
+      std::unique_lock<std::mutex> g(m_);
+      if (q_.empty()) {
+        get_cv_.wait(g, [this]{return q_.size();});
+      }
+      if (q_.empty()) {
+        return false;
+      }
+      *t = std::move(q_.front());
+      q_.pop();
+      if (q_.size()) { need_notify_get = true; }
+      if (q_.size() < capacity_) { need_notify_put = true; }
+    }
+    if (need_notify_get) { get_cv_.notify_one(); }
+    if (need_notify_put) { put_cv_.notify_one(); }
+    return true;
+  }
+
   void Clear() {
     std::unique_lock<std::mutex> g(m_);
     q_ = std::queue<T>();

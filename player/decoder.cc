@@ -54,7 +54,7 @@ bool Decoder::ResetSwsContext(int w, int h, AVPixelFormat fmt) {
 bool Decoder::DecodeVideoPacket(const AVStream *stream, AVCodecContext *ctx,
     const AVPacket *pkt, std::vector<Frame> *frames) {
   auto callback = [this, stream, ctx, frames] (const AVFrame *av_frame) -> bool {
-    LOG_ERROR << "video: " << av_ts2timestr(av_frame->pts, &ctx->time_base);
+    // LOG_ERROR << "video: " << av_ts2timestr(av_frame->pts, &ctx->time_base);
     int width = ctx->width;
     int height = ctx->height;
     AVPixelFormat pix_fmt = ctx->pix_fmt;

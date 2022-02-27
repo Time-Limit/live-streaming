@@ -9,6 +9,7 @@ Speaker::~Speaker() {
     LOG_ERROR << "close audio device, id: " << audio_device_id_;
     audio_device_id_ = -1;
   }
+  speak_future_.wait();
 }
 
 void Speaker::SDLAudioDeviceCallbackInternal(Uint8 *stream, int len) {

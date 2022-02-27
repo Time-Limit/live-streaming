@@ -37,6 +37,9 @@ bool Renderer::ResetTexture(const FrameParam &param) {
 }
 
 void Renderer::UpdateRect(SDL_Rect &texture_rect, SDL_Rect &render_rect) {
+  texture_rect.x = 0, texture_rect.y = 0;
+  texture_rect.w = current_frame_param_.width;
+  texture_rect.h = current_frame_param_.height;
   WindowSize cur_window_size = window_size_.load();
   if (texture_rect.w*1.0/cur_window_size.w > texture_rect.h*1.0/cur_window_size.h) {
     render_rect.x = 0;
@@ -50,7 +53,6 @@ void Renderer::UpdateRect(SDL_Rect &texture_rect, SDL_Rect &render_rect) {
     render_rect.w = texture_rect.w*cur_window_size.h*1.0/texture_rect.h;
   }
 
-  // TODO 不知为何，乘2后方能铺满窗口。
   render_rect.h *= 2;
   render_rect.w *= 2;
 
@@ -92,6 +94,9 @@ Renderer::Renderer(SDL_Window *window) : render_future_(std::async(std::launch::
   if (renderer_ == nullptr) {
     throw std::string("create render failed, ") + SDL_GetError();
   }
+  int w = 0, h = 0;
+  SDL_GetWindowSize(window, &w, &h);
+  SetWindowSize(w, h);
 }
 
 Renderer::~Renderer() {
