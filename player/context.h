@@ -22,14 +22,14 @@ namespace live {
 namespace player {
 
 class Context {
-  // --------- reader begin --------- 
+  // --------- reader start --------- 
   
   // reader：从本地文件或网络获取媒体数据，通过 AVIOContext 与 decode 交互
   std::unique_ptr<Reader> reader_;
 
   // --------- reader end --------- 
 
-  // ---- FFmpeg 相关变量开始 ----
+  // --------- FFmpeg start ---------
   // 以下变量的用法可见 FFmpeg/doc/examples/demuxing_decoding.c
 
   // 如果想自定义 IO，需在 avformat_open_input 之前设置 AVIOContext，可参见 FFmpeg/doc/examples/avio_reading.c
@@ -46,10 +46,6 @@ class Context {
 
   AVIOContext *avio_ctx_ = nullptr;
 
-  // ---- FFmpeg 相关变量结束 ----
-  
-  SDL_Window *window_ = nullptr;
-
  /*
   * @param opaque 自定义数据，此处必传一个 Context 的指针
   * @param buf 缓冲区
@@ -59,6 +55,12 @@ class Context {
   * @note 亦可参见 FFmpeg/doc/examples/avio_reading.c
   */
   static int ReadForAVIOContext(void *opaque, uint8_t *buf, int buf_size);
+
+ /*
+  * @param opaque 自定义数据，此处必传一个 Context 的指针
+  * @param offset, whence 含义可参见 reader.h
+  * @return 小于0表示错误。其他时候的函数由 whence 决定，可参见 reader.h
+  */
   static int64_t SeekForAVIOContext(void *opaque, int64_t offset, int whence);
 
  /*
@@ -69,8 +71,18 @@ class Context {
   */
   bool InitDecodeContext(int *stream_index, AVCodecContext **dec_ctx, enum AVMediaType type);
 
+  /*
+   * @return 初始化FFmpeg相关变量, true 成功，false 失败
+   */
   bool InitFFmpeg();
+  // --------- FFmpeg end ---------
+  
+  // --------- SDL begin ---------
+  SDL_Window *window_ = nullptr;
 
+  /*
+   * @return 初始化 SDL 的运行环境, true 成功，false 失败
+   */
   bool InitSDL() {
     if (0 == SDL_Init(SDL_INIT_AUDIO|SDL_INIT_VIDEO|SDL_INIT_TIMER)) {
       return true;
@@ -79,20 +91,23 @@ class Context {
     return false;
   }
 
+  /*
+   * @return 创建播放视频用的窗口, true 成功，false 失败
+   */
   bool CreateWindow();
+  // --------- SDL end ---------
 
   struct TimeInterval {
     int64_t start = -1; // 单位微秒
-    int64_t duration = 100000; // 单位微秒
+    int64_t duration = -1; // 单位微秒
+    int64_t corresponding_alive_micro_seconds_ = 0; // start 对应的 alive_micro_seconds_ 的值, 用于音画同步
   };
-  // 当前正在播放的时间区间
-  std::atomic<TimeInterval> playing_time_interval_;
+  std::atomic<TimeInterval> playing_time_interval_; // 当前正在播放的音频采样数据的 pts 区间
 
-  // Context 对象创建的时长，单位毫秒。会有一个线程专门更新该字段
-  int64_t started_playing_micro_second_ = -1;
-  int64_t alive_micro_seconds_ = -1;
-  bool is_alive_ = true;
-  std::future<void> heart_future_;
+  int64_t started_playing_micro_second_ = -1; // 开始播放时的 alive_micro_seconds_ 的值
+  int64_t alive_micro_seconds_ = 0; // Context 对象创建的时长，单位毫秒。会有一个线程专门更新该字段
+  bool is_alive_ = true; // 是否执行析构函数了
+  std::future<void> heart_future_; // 用于知悉更新 alive_micro_seconds_ 的线程是否退出
 
  public:
   AVFormatContext* GetFormatContext() { return format_context_; }
@@ -104,21 +119,35 @@ class Context {
   bool IsAudioPacket(const AVPacket *p) const { return p && p->stream_index == audio_stream_idx_; }
   SDL_Window* GetWindow() { return window_; }
 
+  /*
+   * @Param time_point 播放时间点，单位微秒
+   * @return 需要延迟的时间，用可能返回负数，表示应加快播放速度。
+   *
+   * @note 该函数目前只给 Renderer 使用，用于和 Speaker 同步。
+   */
   int64_t CalcDelayTimeInMicroSecond(int64_t time_point) {
     TimeInterval ti = playing_time_interval_.load();
     if (time_point <= ti.start) {
       return 0;
     }
-    return (time_point - ti.start) - (alive_micro_seconds_ - started_playing_micro_second_);
+    //LOG_ERROR << "time_point: " << time_point << ", ti.start: " << ti.start
+    //  << ", alive_micro_seconds_: " << alive_micro_seconds_
+    //  << ", started_playing_micro_second_: " << started_playing_micro_second_;
+    return (time_point - ti.start) - (alive_micro_seconds_ - ti.corresponding_alive_micro_seconds_);
   }
 
+  /*
+   * @Param start, 当前正在播放的音频片段的起始 pts
+   * @Param duration, 当前正在播放的音频片段的播放时长
+   */
   void UpdatePlayingTimeInterval(int64_t start, int64_t duration) {
-    if (started_playing_micro_second_ < 0) {
-      started_playing_micro_second_ = alive_micro_seconds_;
-    }
-    playing_time_interval_.store({start, duration});
+    playing_time_interval_.store({start, duration, alive_micro_seconds_});
   }
 
+  /*
+   * @Param uri, 待播放的媒体文件
+   * @Param is_local_file, 表示 uri 是否为本地文件
+   */
   Context(const std::string uri, bool is_local_file) {
     if (is_local_file) {
       try {
@@ -144,7 +173,7 @@ class Context {
     heart_future_ = std::async(std::launch::async, [this](){
       auto now = std::chrono::system_clock::now().time_since_epoch();
       auto started_micro_second = std::chrono::duration_cast<std::chrono::microseconds>(now).count();
-      while (!is_alive_) {
+      while (is_alive_) {
         std::this_thread::sleep_for(std::chrono::microseconds(500));
         now = std::chrono::system_clock::now().time_since_epoch();
         auto micro_second = std::chrono::duration_cast<std::chrono::microseconds>(now).count();
@@ -153,6 +182,9 @@ class Context {
     });
   }
 
+  /*
+   * @note 错误处理函数，暂时没想好如何实现，就先留空吧
+   */
   void FatalErrorOccurred() {}
 
   ~Context() {
@@ -168,6 +200,7 @@ class Context {
     SDL_DestroyWindow(window_);
     window_ = nullptr;
     SDL_Quit();
+
     is_alive_ = false;
     heart_future_.wait();
   }
