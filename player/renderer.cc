@@ -76,6 +76,13 @@ void Renderer::Render() {
       break;
     }
 
+    int64_t delay_time = delay_time_calculator_(frame.param.pts);
+    if (delay_time > 0) {
+      std::this_thread::sleep_for(std::chrono::microseconds(delay_time));
+    }
+
+    // LOG_ERROR << "pts: " << frame.param.pts << ", delay: " << delay_time;
+
     UpdateRect(texture_rect, render_rect);
 
     SDL_UpdateTexture(texture_, nullptr, &frame.data[0], frame.param.linesize);
@@ -83,12 +90,19 @@ void Renderer::Render() {
     SDL_RenderCopy(renderer_, texture_, &texture_rect, &render_rect);
     SDL_RenderPresent(renderer_);
   }
+
   is_stop_ = true;
 }
 
-Renderer::Renderer(SDL_Window *window) : render_future_(std::async(std::launch::async, &Renderer::Render, this)) {
+Renderer::Renderer(SDL_Window *window, DelayTimeCalculator calculator)
+  : submit_queue_(100)
+  , render_future_(std::async(std::launch::async, &Renderer::Render, this))
+  , delay_time_calculator_(std::move(calculator)) {
   if (!window) {
     throw std::string("the pointer to SDL_Window is nullptr");
+  }
+  if (!delay_time_calculator_) {
+    throw std::string("the calculator is not callable");
   }
   renderer_ = SDL_CreateRenderer(window, -1, 0);
   if (renderer_ == nullptr) {
@@ -100,6 +114,11 @@ Renderer::Renderer(SDL_Window *window) : render_future_(std::async(std::launch::
 }
 
 Renderer::~Renderer() {
+  Stop();
+
+  render_future_.wait();
+  LOG_ERROR << "rendering thread exits";
+
   SDL_DestroyRenderer(renderer_);
   renderer_ = nullptr;
 

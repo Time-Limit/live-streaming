@@ -44,33 +44,9 @@ int main(int argc, char **argv) {
   };
   auto read_future = std::async(std::launch::async, std::move(read_func));
 
-  Speaker speaker;
-  auto decode_audio_packet_func = [&context, &audio_packet_q_, &speaker, &quit_flag] () {
-    Decoder decoder;
-    AVPacket *packet = nullptr;
-    std::vector<Sample> samples;
-    auto stream = context.GetAudioStream();
-    auto decode_context = context.GetAudioCodecContext();
-
-    while (!quit_flag) {
-      if (!audio_packet_q_.TimedGet(&packet, std::chrono::milliseconds(100))) {
-        continue;
-      }
-      samples.resize(0);
-      if (!decoder.DecodeAudioPacket(stream, decode_context, packet, &samples)) {
-        LOG_ERROR << "decode failed";
-        return;
-      }
-      for (auto &sample : samples) {
-        speaker.Submit(std::move(sample));
-      }
-      av_packet_free(&packet);
-      packet = nullptr;
-    }
-  };
-  auto audio_decoder_future = std::async(std::launch::async, std::move(decode_audio_packet_func));
-
-  Renderer renderer(context.GetWindow());
+  Renderer renderer(context.GetWindow(), [&context](int64_t time_point) {
+    return context.CalcDelayTimeInMicroSecond(time_point);
+  });
   auto decode_video_packet_func = [&context, &video_packet_q_, &renderer, &quit_flag] () {
     Decoder decoder;
     AVPacket *packet = nullptr;
@@ -95,6 +71,34 @@ int main(int argc, char **argv) {
     }
   };
   auto video_decoder_future = std::async(std::launch::async, std::move(decode_video_packet_func));
+
+  Speaker speaker([&context](const Sample *sample){
+    context.UpdatePlayingTimeInterval(sample->param.pts, sample->param.duration);
+  });
+  auto decode_audio_packet_func = [&context, &audio_packet_q_, &speaker, &quit_flag] () {
+    Decoder decoder;
+    AVPacket *packet = nullptr;
+    std::vector<Sample> samples;
+    auto stream = context.GetAudioStream();
+    auto decode_context = context.GetAudioCodecContext();
+
+    while (!quit_flag) {
+      if (!audio_packet_q_.TimedGet(&packet, std::chrono::milliseconds(100))) {
+        continue;
+      }
+      samples.resize(0);
+      if (!decoder.DecodeAudioPacket(stream, decode_context, packet, &samples)) {
+        LOG_ERROR << "decode failed";
+        return;
+      }
+      for (auto &sample : samples) {
+        speaker.Submit(std::move(sample));
+      }
+      av_packet_free(&packet);
+      packet = nullptr;
+    }
+  };
+  auto audio_decoder_future = std::async(std::launch::async, std::move(decode_audio_packet_func));
 
   while (!renderer.IsStop() && !speaker.IsStop() && !quit_flag) {
     SDL_Event windowEvent;
@@ -125,6 +129,7 @@ int main(int argc, char **argv) {
       default: {}
     }
   }
+  LOG_ERROR << "waiting event loop is broken";
 
   quit_flag = true;
 
@@ -132,8 +137,11 @@ int main(int argc, char **argv) {
   renderer.Stop();
 
   audio_decoder_future.wait();
+  LOG_ERROR << "audio decoder exits";
   video_decoder_future.wait();
+  LOG_ERROR << "video decoder exits";
   read_future.wait();
+  LOG_ERROR << "reading thread exits";
 
   return 0;
 }

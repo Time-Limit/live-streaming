@@ -77,6 +77,21 @@ class Queue {
     return size;
   }
 
+  bool TimedPut(T &&t, const std::chrono::milliseconds &timeout) {
+    {
+      std::unique_lock<std::mutex> g(m_);
+      if (capacity_ && q_.size() >= capacity_) {
+        put_cv_.wait_for(g, timeout, [this]{return q_.size() < capacity_;});
+      }
+      if (capacity_ && q_.size() >= capacity_) {
+        return false;
+      }
+      PutWithoutLock(std::forward<T>(t));
+    }
+    get_cv_.notify_one();
+    return true;
+  }
+
   bool TryToGet(T *t) {
     bool need_notify_get = false;
     bool need_notify_put = false;

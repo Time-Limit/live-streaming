@@ -12,12 +12,31 @@ Speaker::~Speaker() {
   speak_future_.wait();
 }
 
+void Speaker::Speak() {
+  while (!is_stop_) {
+    Sample sample;
+    if (!submit_queue_.TimedGet(&sample, std::chrono::milliseconds(100))) {
+      continue;
+    }
+    if (!ResetAudioDevice(sample.param)) {
+      LOG_ERROR << "ResetAudioDevice failed";
+      break;
+    }
+    sample_queue_.Put(std::move(sample));
+  }
+  is_stop_ = true;
+}
+
 void Speaker::SDLAudioDeviceCallbackInternal(Uint8 *stream, int len) {
   SDL_memset(stream, 0, len);
 
-  std::vector<uint8_t> next;
+  Sample next;
   while (sample_buffer_.size() < len && sample_queue_.TryToGet(&next)) {
-    sample_buffer_.insert(sample_buffer_.end(), next.begin(), next.end());
+    if (callback_) {
+      callback_(&next);
+      // LOG_ERROR << "pts: " << next.param.pts << ", duration: " << next.param.duration;
+    }
+    sample_buffer_.insert(sample_buffer_.end(), next.data.begin(), next.data.end());
   }
   if (len > sample_buffer_.size()) {
     len = sample_buffer_.size();

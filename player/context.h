@@ -14,7 +14,9 @@ extern "C" {
 
 #include <SDL2/SDL.h>
 
-#include <vector>
+#include <chrono>
+#include <thread>
+#include <future>
 
 namespace live {
 namespace player {
@@ -79,6 +81,19 @@ class Context {
 
   bool CreateWindow();
 
+  struct TimeInterval {
+    int64_t start = -1; // 单位微秒
+    int64_t duration = 100000; // 单位微秒
+  };
+  // 当前正在播放的时间区间
+  std::atomic<TimeInterval> playing_time_interval_;
+
+  // Context 对象创建的时长，单位毫秒。会有一个线程专门更新该字段
+  int64_t started_playing_micro_second_ = -1;
+  int64_t alive_micro_seconds_ = -1;
+  bool is_alive_ = true;
+  std::future<void> heart_future_;
+
  public:
   AVFormatContext* GetFormatContext() { return format_context_; }
   AVStream* GetAudioStream() { return format_context_->streams[audio_stream_idx_]; }
@@ -88,6 +103,21 @@ class Context {
   bool IsVideoPacket(const AVPacket *p) const { return p && p->stream_index == video_stream_idx_; }
   bool IsAudioPacket(const AVPacket *p) const { return p && p->stream_index == audio_stream_idx_; }
   SDL_Window* GetWindow() { return window_; }
+
+  int64_t CalcDelayTimeInMicroSecond(int64_t time_point) {
+    TimeInterval ti = playing_time_interval_.load();
+    if (time_point <= ti.start) {
+      return 0;
+    }
+    return (time_point - ti.start) - (alive_micro_seconds_ - started_playing_micro_second_);
+  }
+
+  void UpdatePlayingTimeInterval(int64_t start, int64_t duration) {
+    if (started_playing_micro_second_ < 0) {
+      started_playing_micro_second_ = alive_micro_seconds_;
+    }
+    playing_time_interval_.store({start, duration});
+  }
 
   Context(const std::string uri, bool is_local_file) {
     if (is_local_file) {
@@ -108,7 +138,19 @@ class Context {
     }
 
     if (!CreateWindow()) {
+      throw std::string("create window failed");
     }
+
+    heart_future_ = std::async(std::launch::async, [this](){
+      auto now = std::chrono::system_clock::now().time_since_epoch();
+      auto started_micro_second = std::chrono::duration_cast<std::chrono::microseconds>(now).count();
+      while (!is_alive_) {
+        std::this_thread::sleep_for(std::chrono::microseconds(500));
+        now = std::chrono::system_clock::now().time_since_epoch();
+        auto micro_second = std::chrono::duration_cast<std::chrono::microseconds>(now).count();
+        alive_micro_seconds_ = micro_second - started_micro_second;
+      }
+    });
   }
 
   void FatalErrorOccurred() {}
@@ -126,6 +168,8 @@ class Context {
     SDL_DestroyWindow(window_);
     window_ = nullptr;
     SDL_Quit();
+    is_alive_ = false;
+    heart_future_.wait();
   }
 };
 

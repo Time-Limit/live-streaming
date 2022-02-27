@@ -24,28 +24,23 @@ class Speaker {
   }
   void SDLAudioDeviceCallbackInternal(Uint8 *stream, int len);
   std::vector<uint8_t> sample_buffer_;
-  util::Queue<std::vector<uint8_t>> sample_queue_;
+  util::Queue<Sample> sample_queue_;
   util::Queue<Sample> submit_queue_;
   std::future<void> speak_future_;
   bool is_stop_ = false;
 
-  void Speak() {
-    while (!is_stop_) {
-      Sample sample;
-      if (!submit_queue_.TimedGet(&sample, std::chrono::milliseconds(100))) {
-        continue;
-      }
-      if (!ResetAudioDevice(sample.param)) {
-        LOG_ERROR << "ResetAudioDevice failed";
-        break;
-      }
-      sample_queue_.Put(std::move(sample.data));
-    }
-    is_stop_ = true;
-  }
+  void Speak();
 
  public:
-  Speaker() : sample_queue_(1), speak_future_(std::async(std::launch::async, &Speaker::Speak, this)) {}
+  using Callback = std::function<void(const Sample *)>;
+ private:
+  Callback callback_;
+ public:
+  Speaker() : Speaker(nullptr) {}
+  Speaker(Callback cb)
+    : sample_queue_(1)
+    , speak_future_(std::async(std::launch::async, &Speaker::Speak, this))
+    , callback_(std::move(cb)) {}
   ~Speaker();
 
   Speaker(const Speaker &) = delete;
@@ -56,7 +51,7 @@ class Speaker {
   }
 
   bool HasPendingData() const {
-    return sample_queue_.Size();
+    return sample_queue_.Size() || submit_queue_.Size();
   }
 
   void Stop() { is_stop_ = true; }

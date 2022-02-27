@@ -18,9 +18,13 @@ struct StreamLog {
   std::ostream &stream;
   StreamLog(std::ostream &s, char c, const char *file, int line, const char *func) : stream(s) {
     std::time_t t = std::time(nullptr);
+    auto now = std::chrono::system_clock::now().time_since_epoch();
+    char msecs[4] = {0};
+    snprintf(msecs, 4, "%03lld", std::chrono::duration_cast<std::chrono::microseconds>(now).count()%1000);
+    //auto msecs = std::chrono::duration_cast<std::chrono::microseconds>(now).count()%1000;
     stream << "\033[2m"
     << c
-    << std::put_time(std::localtime(&t), "%H:%M:%S") << ':'
+    << std::put_time(std::localtime(&t), "%H:%M:%S") << '.' << msecs << ':'
     << file << ':'
     << std::setfill('0') << std::setw(5) << line << ':'
     << func << ": " << "\033[0m";

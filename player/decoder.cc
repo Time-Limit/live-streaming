@@ -53,8 +53,8 @@ bool Decoder::ResetSwsContext(int w, int h, AVPixelFormat fmt) {
 
 bool Decoder::DecodeVideoPacket(const AVStream *stream, AVCodecContext *ctx,
     const AVPacket *pkt, std::vector<Frame> *frames) {
-  auto callback = [this, stream, ctx, frames] (const AVFrame *av_frame) -> bool {
-    // LOG_ERROR << "video: " << av_ts2timestr(av_frame->pts, &ctx->time_base);
+  auto callback = [this, pkt, stream, ctx, frames] (const AVFrame *av_frame) -> bool {
+
     int width = ctx->width;
     int height = ctx->height;
     AVPixelFormat pix_fmt = ctx->pix_fmt;
@@ -98,13 +98,10 @@ bool Decoder::DecodeVideoPacket(const AVStream *stream, AVCodecContext *ctx,
     frame.param.width = width;
     frame.param.pix_fmt = pix_fmt;
     frame.param.linesize = linesize;
+    frame.param.pts = av_frame->pts * 1000000L * stream->time_base.num / stream->time_base.den;
 
-    if (ctx->framerate.num == 0 && ctx->framerate.den == 1) {
-      // 可用 AVStream::avg_frame_rate 代替
-      frame.param.frame_rate = stream->avg_frame_rate.num*1.0f/stream->avg_frame_rate.den;
-    } else {
-      frame.param.frame_rate = ctx->framerate.num*1.0f/ctx->framerate.den;
-    }
+    // LOG_ERROR << "video, pts in AVFrame: " << av_frame->pts << ", pts in FrameParam: " << frame.param.pts
+    //   << ", stream->time_base: " << stream->time_base.num << "/" << stream->time_base.den;
 
     return true;
   };
@@ -167,13 +164,7 @@ AVSampleFormat ExtractPCMData(AVSampleFormat sample_format, int sample_number, i
 bool Decoder::DecodeAudioPacket(const AVStream *stream, AVCodecContext *ctx,
     const AVPacket *pkt, std::vector<Sample> *samples) {
 
-  auto callback = [stream, samples, ctx] (const AVFrame *av_frame) -> bool {
-    // size_t unpadded_linesize = frame->nb_samples * av_get_bytes_per_sample(frame->format);
-
-    // printf("audio_frame n:%d nb_samples:%d pts:%s\n",
-    //       audio_frame_count++, frame->nb_samples,
-    //       av_ts2timestr(frame->pts, &audio_dec_ctx->time_base));
-
+  auto callback = [pkt, stream, samples, ctx] (const AVFrame *av_frame) -> bool {
     // enum AVSampleFormat 定义参见 FFmpeg/libavutil/samplefmt.h
     AVSampleFormat sample_format = AVSampleFormat(stream->codecpar->format);
     int sample_number = av_frame->nb_samples;
@@ -196,6 +187,12 @@ bool Decoder::DecodeAudioPacket(const AVStream *stream, AVCodecContext *ctx,
     sample.param.sample_rate = sample_rate;
     sample.param.sample_number = sample_number;
     sample.param.sample_format = sample_format;
+    sample.param.pts = av_frame->pts * 1000000L * stream->time_base.num / stream->time_base.den;
+    sample.param.duration = sample_number * 1000000L * stream->time_base.num / stream->time_base.den;
+    
+    //LOG_ERROR << "audio, pts in AVFrame: " << av_frame->pts << ", pts in FrameParam: " << sample.param.pts
+    //  << ", duration: " << sample.param.duration
+    //  << ", stream->time_base: " << stream->time_base.num << "/" << stream->time_base.den;
 
     return true;
   };

@@ -15,8 +15,8 @@ namespace player {
 struct FrameParam {
   uint32_t height = 0;
   uint32_t width = 0;
-  double frame_rate = 0;
   int32_t linesize = 0;
+  int64_t pts = -1; // in microsecond
   enum AVPixelFormat pix_fmt = AV_PIX_FMT_NONE;
 
   bool IsSameWith(const FrameParam &param) const {
@@ -36,6 +36,8 @@ struct SampleParam {
   int32_t sample_rate = 0; // The number of audio samples per second.
   enum AVSampleFormat sample_format = AV_SAMPLE_FMT_NONE;
   int32_t sample_number = 0;
+  int64_t pts = -1; //播放时间，单位微秒  microsecond
+  int64_t duration = -1; //播放时长, 单位微秒 microsecond
 
   bool IsSameWith(const SampleParam &rhs) const {
     return this->channel_number == rhs.channel_number 
