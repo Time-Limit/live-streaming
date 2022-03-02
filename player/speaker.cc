@@ -91,13 +91,7 @@ bool Speaker::ResetAudioDevice(const SampleParam &param) {
     << ", samples: " << desired_audio_spec_.samples
     << ", format: " << desired_audio_spec_.format;
 
-  auto device_id = SDL_OpenAudioDevice(nullptr, 0, &desired_audio_spec_,
-      &obtained_audio_spec_, SDL_AUDIO_ALLOW_ANY_CHANGE);
-
-  LOG_INFO << "freq: " << obtained_audio_spec_.freq
-    << ", channels: " << int(obtained_audio_spec_.channels)
-    << ", samples: " << obtained_audio_spec_.samples
-    << ", format: " << obtained_audio_spec_.format;
+  auto device_id = SDL_OpenAudioDevice(nullptr, 0, &desired_audio_spec_, nullptr, 0);
 
   if (device_id < 2) {
     LOG_ERROR << "SDL_OpenAudioDevice failed, ret: " << device_id << ", msg: " << SDL_GetError();

@@ -15,6 +15,14 @@ class Reader {
   * @return 成功则返回写入缓冲区的字节数，否则返回一个 AVERROR 对应的负数
   */
   virtual int Read(uint8_t *buf, int size) = 0;
+ /*
+  * @Param offset，偏移量
+  * @Param whence，目前了解到只有四种取值:
+  *                AVSEEK_SIZE: 不进行 seek 操作。
+  *                SEEK_SET,SEEK_CUR,SEEK_END: 调整读取位置，详见 https://en.cppreference.com/w/cpp/io/c/fseek
+  *
+  * @return AVSEEK_SIZE 时返回数据的字节数；其他三个返回读取位置；
+  */
   virtual int64_t Seek(int64_t offset, int whence) = 0;
 
   virtual ~Reader() = default;

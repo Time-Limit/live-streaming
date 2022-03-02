@@ -199,7 +199,7 @@ bool Decoder::DecodeAudioPacket(const AVStream *stream, AVCodecContext *ctx,
   return Packet2AVFrame(ctx, pkt, callback);
 }
 
-bool Decoder::Packet2AVFrame(AVCodecContext *ctx, const AVPacket *pkt, const Packet2AVFrameCallback &cb) {
+bool Decoder::Packet2AVFrame(AVCodecContext *ctx, const AVPacket *pkt, const FrameDataExtractor &extractor) {
 
   // submit the packet to the decoder
   int ret = avcodec_send_packet(ctx, pkt);
@@ -220,7 +220,7 @@ bool Decoder::Packet2AVFrame(AVCodecContext *ctx, const AVPacket *pkt, const Pac
       LOG_ERROR << "error during decoding " << av_err2str(ret);
       return false;
     }
-    if (!cb(av_frame_)) {
+    if (!extractor(av_frame_)) {
       LOG_ERROR << "the result of callback is wrong";
       return false;
     }

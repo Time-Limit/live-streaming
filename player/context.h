@@ -130,10 +130,14 @@ class Context {
     if (time_point <= ti.start) {
       return 0;
     }
+    int64_t delta = 0;
+    if (time_point > ti.start + ti.duration + 100*1000) {
+      delta += time_point - ti.start;
+    }
     //LOG_ERROR << "time_point: " << time_point << ", ti.start: " << ti.start
     //  << ", alive_micro_seconds_: " << alive_micro_seconds_
     //  << ", started_playing_micro_second_: " << started_playing_micro_second_;
-    return (time_point - ti.start) - (alive_micro_seconds_ - ti.corresponding_alive_micro_seconds_);
+    return (time_point - ti.start) - (alive_micro_seconds_ - ti.corresponding_alive_micro_seconds_) + delta;
   }
 
   /*
@@ -147,6 +151,8 @@ class Context {
   /*
    * @Param uri, 待播放的媒体文件
    * @Param is_local_file, 表示 uri 是否为本地文件
+   *
+   * @note 在某些OS上，只能在主线程创建窗口，因此只能在主线程调用Context的构造函数。
    */
   Context(const std::string uri, bool is_local_file) {
     if (is_local_file) {

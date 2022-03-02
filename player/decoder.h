@@ -29,16 +29,40 @@ class Decoder {
   Decoder();
   ~Decoder();
  public:
+  /*
+   * @Param stream, pkt 所在的 AVStream
+   * @Param ctx，pkt 对应的 AVCodecContext
+   * @Param pkt，待解码的 AVPacket
+   * @Param frames, 用于存放解码后的视频数据
+   * @return true 解码成功，false 解码失败
+   */
   bool DecodeVideoPacket(const AVStream *stream, AVCodecContext *ctx,
       const AVPacket *pkt, std::vector<Frame> *frames);
+  /*
+   * @Param samples, 用于存放解码后的音频数据，其他参数和 DecodeVideoPacket 相同
+   * @return true 解码成功，false 解码失败
+   */
   bool DecodeAudioPacket(const AVStream *stream, AVCodecContext *ctx,
       const AVPacket *pkt, std::vector<Sample> *samples);
 
  private:
-  using Packet2AVFrameCallback = std::function<bool(const AVFrame *)>;
-  bool Packet2AVFrame(AVCodecContext *ctx, const AVPacket *pkt, const Packet2AVFrameCallback &cb);
+  // 从 AVPacket 解码音频帧和视频帧的流程很相似，只有从 AVFrame 提取 YUV 和 PCM 的部分有差异。
+  // 因此，将差异部分封装为 FrameDataExtractor。相同逻辑复用 Packet2AVFrame
+  using FrameDataExtractor = std::function<bool(const AVFrame *)>;
+
+  /*
+   * @Param ctx，pkt 对应的 AVCodecContext
+   * @Param pkt，待解码的 AVPacket
+   * @Param extractor，AVPacket 解码后得到 AVFrame，extractor 将从这些 AVFrame 提取数据。
+   * @return true 成功，false 失败
+   */
+  bool Packet2AVFrame(AVCodecContext *ctx, const AVPacket *pkt, const FrameDataExtractor &extractor);
+
+  // 解码过程中复用的 AVFrame
   AVFrame *av_frame_ = nullptr;
 
+  // 转换视频格式用的数据。
+  // 因 SDL 能播放的格式优先，因此将其他 AVPixelFormat 均转换为 YUV420P，方便 SDL 播放。
   struct PixelData {
     static const uint8_t VIDEO_DST_SIZE = 4;
     uint8_t *data[VIDEO_DST_SIZE] = {nullptr};
