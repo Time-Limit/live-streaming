@@ -1,4 +1,4 @@
-#include "player/reader.h"
+#include "util/reader.h"
 #include "util/util.h"
 
 extern "C" {
@@ -7,7 +7,7 @@ extern "C" {
 }
 
 namespace live {
-namespace player {
+namespace util {
 
 LocalFileReader::LocalFileReader(const std::string &p)
     : Reader(), path_(p), file_(path_, std::ios::in|std::ios::binary), file_size_(-1) {

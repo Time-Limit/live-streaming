@@ -5,7 +5,7 @@
 #include <cstdint>
 
 namespace live {
-namespace player {
+namespace util {
 
 class Reader {
  public:

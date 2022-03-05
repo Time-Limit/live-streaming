@@ -1,4 +1,4 @@
-#include "player/reader.h"
+#include "util/reader.h"
 #include "util/util.h"
 
 extern "C" {
@@ -12,8 +12,6 @@ extern "C" {
 #include <libavformat/avformat.h>
 }
 
-#include <SDL2/SDL.h>
-
 #include <chrono>
 #include <thread>
 #include <future>
@@ -25,6 +23,8 @@ class Context {
   // --------- reader start --------- 
   
   // reader：从本地文件或网络获取媒体数据，通过 AVIOContext 与 decode 交互
+  using Reader = ::live::util::Reader;
+  using LocalFileReader = ::live::util::LocalFileReader;
   std::unique_ptr<Reader> reader_;
 
   // --------- reader end --------- 
@@ -76,26 +76,6 @@ class Context {
    */
   bool InitFFmpeg();
   // --------- FFmpeg end ---------
-  
-  // --------- SDL begin ---------
-  SDL_Window *window_ = nullptr;
-
-  /*
-   * @return 初始化 SDL 的运行环境, true 成功，false 失败
-   */
-  bool InitSDL() {
-    if (0 == SDL_Init(SDL_INIT_AUDIO|SDL_INIT_VIDEO|SDL_INIT_TIMER)) {
-      return true;
-    }
-    LOG_ERROR << "SDL_Init failed, " << SDL_GetError();
-    return false;
-  }
-
-  /*
-   * @return 创建播放视频用的窗口, true 成功，false 失败
-   */
-  bool CreateWindow();
-  // --------- SDL end ---------
 
   struct TimeInterval {
     int64_t start = -1; // 单位微秒
@@ -117,7 +97,6 @@ class Context {
   AVCodecContext* GetVideoCodecContext() { return video_dec_ctx_; }
   bool IsVideoPacket(const AVPacket *p) const { return p && p->stream_index == video_stream_idx_; }
   bool IsAudioPacket(const AVPacket *p) const { return p && p->stream_index == audio_stream_idx_; }
-  SDL_Window* GetWindow() { return window_; }
 
   /*
    * @Param time_point 播放时间点，单位微秒
@@ -168,14 +147,6 @@ class Context {
       throw std::string("init ffmpeg failed");
     }
 
-    if (!InitSDL()) {
-      throw std::string("init SDL failed");
-    }
-
-    if (!CreateWindow()) {
-      throw std::string("create window failed");
-    }
-
     heart_future_ = std::async(std::launch::async, [this](){
       auto now = std::chrono::system_clock::now().time_since_epoch();
       auto started_micro_second = std::chrono::duration_cast<std::chrono::microseconds>(now).count();
@@ -202,10 +173,6 @@ class Context {
       av_freep(&avio_ctx_->buffer);
       avio_context_free(&avio_ctx_);
     }
-
-    SDL_DestroyWindow(window_);
-    window_ = nullptr;
-    SDL_Quit();
 
     is_alive_ = false;
     heart_future_.wait();

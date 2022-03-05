@@ -7,9 +7,8 @@ extern "C" {
 
 #include <vector>
 
-
 namespace live {
-namespace player {
+namespace util {
 
 #pragma pack (1)
 struct FrameParam {

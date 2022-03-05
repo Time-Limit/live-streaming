@@ -1,6 +1,6 @@
 #pragma once
 
-#include "player/base.h"
+#include "util/base.h"
 
 #include "util/util.h"
 #include "util/queue.h"
@@ -13,20 +13,24 @@
 #include <atomic>
 
 namespace live {
-namespace player {
+namespace util {
 
 class Renderer {
-  SDL_Renderer* renderer_ = nullptr;
+  SDL_Window *window_ = nullptr;
   SDL_Texture* texture_ = nullptr;
+  SDL_Renderer* renderer_ = nullptr;
+
+  static int SDLEvnetFilter(void *userdata, SDL_Event *event) {
+    return reinterpret_cast<Renderer *>(userdata)->SDLEvnetFilterInternal(event);
+  }
+  int SDLEvnetFilterInternal(SDL_Event *event);
+
   FrameParam current_frame_param_;
 
   util::Queue<Frame> submit_queue_;
 
-  struct WindowSize {int w; int h;};
-  std::atomic<WindowSize> window_size_;
-
   std::future<void> render_future_;
-  bool is_stop_ = false;
+  bool is_alive_ = true;
 
   /*
    * @note 依次渲染 submit_queue_ 中的数据，会有单独的线程执行该函数
@@ -39,7 +43,7 @@ class Renderer {
   bool ResetTexture(const FrameParam &param);
 
   /*
-   * @note 根据 current_frame_param_ 和 window_size_ 计算合适的宽高和位置，实现等比例缩放和画面居中
+   * @note 根据 current_frame_param_ 和 window size 计算合适的宽高和位置，实现等比例缩放和画面居中
    */
   void UpdateRect(SDL_Rect &texture_rect, SDL_Rect &render_rect);
 
@@ -59,7 +63,7 @@ class Renderer {
    * @Param window，可以渲染数据的窗口
    * @Param calculator，计算延迟时间的函数对象
    */
-  Renderer(SDL_Window *window, DelayTimeCalculator calculator);
+  Renderer(DelayTimeCalculator calculator);
   ~Renderer();
 
   Renderer(const Renderer &) = delete;
@@ -69,7 +73,7 @@ class Renderer {
    * @Param frame, 将 frame 提交至待播放队列，Render 函数会依次渲染队列中的数据。
    */
   void Submit(Frame &&frame) {
-    while (!is_stop_ && !submit_queue_.TimedPut(std::move(frame), std::chrono::milliseconds(100))) {
+    while (is_alive_ && !submit_queue_.TimedPut(std::move(frame), std::chrono::milliseconds(100))) {
     }
   }
 
@@ -77,17 +81,13 @@ class Renderer {
     return submit_queue_.Size();
   }
 
-  void Stop() {
-    if (is_stop_ == false) {
-      is_stop_ = true;
+  void Kill() {
+    if (is_alive_ == true) {
+      is_alive_ = false;
     }
   }
 
-  bool IsStop() { return is_stop_; }
-
-  void SetWindowSize(int w, int h) {
-    window_size_.store(WindowSize{w, h});
-  }
+  bool IsAlive() { return is_alive_; }
 };
 
 }

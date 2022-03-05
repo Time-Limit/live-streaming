@@ -2,7 +2,7 @@
 
 #include <SDL2/SDL.h>
 
-#include "player/base.h"
+#include "util/base.h"
 
 #include "util/util.h"
 #include "util/queue.h"
@@ -10,7 +10,7 @@
 #include <future>
 
 namespace live {
-namespace player {
+namespace util {
 
 class Speaker {
   /*
@@ -52,7 +52,7 @@ class Speaker {
   // 存放外部提交数据的队列
   util::Queue<Sample> submit_queue_;
   std::future<void> speak_future_;
-  bool is_stop_ = false;
+  bool is_alive_ = true;
 
   /*
    * @note 会有单独的线程执行此函数。
@@ -88,8 +88,8 @@ class Speaker {
     return sample_queue_.Size() || submit_queue_.Size();
   }
 
-  void Stop() { is_stop_ = true; }
-  bool IsStop() { return is_stop_; }
+  void Kill() { is_alive_ = false; }
+  bool IsAlive() { return is_alive_; }
 };
 
 }

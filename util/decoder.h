@@ -19,7 +19,7 @@ extern "C" {
 #include <cstdint>
 
 namespace live {
-namespace player {
+namespace util {
 
 class Frame;
 class Sample;

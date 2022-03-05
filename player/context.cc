@@ -12,27 +12,6 @@ extern "C" {
 namespace live {
 namespace player {
 
-bool Context::CreateWindow() {
-  if (window_ != nullptr) {
-    LOG_ERROR << "window has already created, window: " << window_;
-    return false;
-  }
-
-  window_ = SDL_CreateWindow(nullptr,
-      SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-      FLAGS_window_width, FLAGS_window_height,
-      SDL_WINDOW_ALLOW_HIGHDPI|SDL_WINDOW_RESIZABLE);
-
-  if (window_ == nullptr) {
-    LOG_ERROR << "create window failed, " << SDL_GetError();
-    return false;
-  }
-
-  LOG_ERROR << "create window success";
-
-  return true;
-}
-
 bool Context::InitDecodeContext(int *index, AVCodecContext **dec_ctx, enum AVMediaType type) {
   int ret = -1;
   ret = av_find_best_stream(format_context_, type, -1, -1, nullptr, 0);

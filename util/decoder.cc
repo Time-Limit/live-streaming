@@ -1,8 +1,8 @@
-#include "player/decoder.h"
-#include "player/base.h"
+#include "util/decoder.h"
+#include "util/base.h"
 
 namespace live {
-namespace player {
+namespace util {
 
 Decoder::Decoder() {
   av_frame_ = av_frame_alloc();
@@ -45,7 +45,7 @@ bool Decoder::ResetSwsContext(int w, int h, AVPixelFormat fmt) {
     LOG_ERROR << "sws_getContext failed";
     return false;
   }
-  if (!sws_pixel_data_.Reset(w, h, fmt)) {
+  if (!sws_pixel_data_.Reset(w, h, AV_PIX_FMT_YUV420P)) {
     return false;
   }
   return true;
@@ -77,7 +77,7 @@ bool Decoder::DecodeVideoPacket(const AVStream *stream, AVCodecContext *ctx,
         return false;
       }
 
-      sws_scale(sws_context_,
+      height = sws_scale(sws_context_,
           (const uint8_t * const*)pixel_data_.data, pixel_data_.linesize, 0, height,
           sws_pixel_data_.data, sws_pixel_data_.linesize);
 

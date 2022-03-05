@@ -1,7 +1,7 @@
-#include "player/speaker.h"
+#include "util/speaker.h"
 
 namespace live {
-namespace player {
+namespace util {
 
 Speaker::~Speaker() {
   if (audio_device_id_ != -1) {
@@ -13,7 +13,7 @@ Speaker::~Speaker() {
 }
 
 void Speaker::Speak() {
-  while (!is_stop_) {
+  while (is_alive_) {
     Sample sample;
     if (!submit_queue_.TimedGet(&sample, std::chrono::milliseconds(100))) {
       continue;
@@ -24,7 +24,7 @@ void Speaker::Speak() {
     }
     sample_queue_.Put(std::move(sample));
   }
-  is_stop_ = true;
+  is_alive_ = false;
 }
 
 void Speaker::SDLAudioDeviceCallbackInternal(Uint8 *stream, int len) {

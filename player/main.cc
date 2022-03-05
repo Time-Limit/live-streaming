@@ -1,11 +1,13 @@
 #include "player/args.h"
 #include "player/context.h"
 #include "util/util.h"
-#include "player/speaker.h"
-#include "player/decoder.h"
-#include "player/renderer.h"
+#include "util/speaker.h"
+#include "util/decoder.h"
+#include "util/renderer.h"
+#include "util/env.h"
 
 using namespace live::player;
+using namespace live::util;
 
 int main(int argc, char **argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -44,7 +46,7 @@ int main(int argc, char **argv) {
   };
   auto read_future = std::async(std::launch::async, std::move(read_func));
 
-  Renderer renderer(context.GetWindow(), [&context](int64_t time_point) {
+  Renderer renderer([&context](int64_t time_point) {
     return context.CalcDelayTimeInMicroSecond(time_point);
   });
   auto decode_video_packet_func = [&context, &video_packet_q_, &renderer, &quit_flag] () {
@@ -100,41 +102,18 @@ int main(int argc, char **argv) {
   };
   auto audio_decoder_future = std::async(std::launch::async, std::move(decode_audio_packet_func));
 
-  while (!renderer.IsStop() && !speaker.IsStop() && !quit_flag) {
-    SDL_Event windowEvent;
-    if (read_finish_flag
-        && audio_packet_q_.Size() == 0 && video_packet_q_.Size() == 0
-        && !speaker.HasPendingData() && !renderer.HasPendingData()) {
-      quit_flag = true;
-      continue;
-    }
-    if (!SDL_WaitEventTimeout(&windowEvent, 100)) {
-      continue;
-    }
-    switch (windowEvent.type) {
-      case SDL_QUIT:
-        {
-          quit_flag = true;
-          break;
-        }
-      case SDL_WINDOWEVENT:
-        {
-          const auto &window = windowEvent.window;
-          if (window.event == SDL_WINDOWEVENT_RESIZED) {
-            LOG_ERROR << "window resized, width: " << window.data1 << ", height: " << window.data2;
-            renderer.SetWindowSize(window.data1, window.data2);
-          }
-          break;
-        }
-      default: {}
-    }
-  }
-  LOG_ERROR << "waiting event loop is broken";
+  live::util::WaitSDLEventUntilCheckerReturnFalse(
+      [p_qf = &quit_flag, p_r = &renderer, p_s = &speaker] () {
+        return !(*p_qf) && p_r->IsAlive() && p_s->IsAlive();
+      }
+  );
+
+  LOG_ERROR << "exiting...";
 
   quit_flag = true;
 
-  speaker.Stop();
-  renderer.Stop();
+  speaker.Kill();
+  renderer.Kill();
 
   audio_decoder_future.wait();
   LOG_ERROR << "audio decoder exits";
