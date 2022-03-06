@@ -16,6 +16,8 @@ namespace live {
 namespace util {
 
 class Renderer {
+  std::atomic<bool> is_alive_;
+
   SDL_Window *window_ = nullptr;
   SDL_Texture* texture_ = nullptr;
   SDL_Renderer* renderer_ = nullptr;
@@ -30,7 +32,6 @@ class Renderer {
   util::Queue<Frame> submit_queue_;
 
   std::future<void> render_future_;
-  bool is_alive_ = true;
 
   /*
    * @note 依次渲染 submit_queue_ 中的数据，会有单独的线程执行该函数
@@ -82,8 +83,25 @@ class Renderer {
   }
 
   void Kill() {
-    if (is_alive_ == true) {
-      is_alive_ = false;
+    if (is_alive_.exchange(false)) {
+      LOG_ERROR << "rendering thread is exiting";
+
+      render_future_.wait();
+
+      if (renderer_) {
+        SDL_DestroyRenderer(renderer_);
+        renderer_ = nullptr;
+      }
+
+      if (window_ != nullptr) {
+        SDL_DestroyWindow(window_);
+        window_ = nullptr;
+      }
+
+      SDL_DestroyTexture(texture_);
+      texture_ = nullptr;
+
+      LOG_ERROR << "rendering thread is exited";
     }
   }
 

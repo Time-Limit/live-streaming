@@ -31,7 +31,7 @@ struct Frame {
   std::vector<uint8_t> data; // 该帧的像素数据
 };
 
-#pragma pack ()
+#pragma pack (1)
 struct SampleParam {
   int8_t channel_number = 0; // The number of audio channels
   int32_t sample_rate = 0; // The number of audio samples per second.

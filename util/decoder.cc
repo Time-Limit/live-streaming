@@ -166,7 +166,7 @@ bool Decoder::DecodeAudioPacket(const AVStream *stream, AVCodecContext *ctx,
 
   auto callback = [pkt, stream, samples, ctx] (const AVFrame *av_frame) -> bool {
     // enum AVSampleFormat 定义参见 FFmpeg/libavutil/samplefmt.h
-    AVSampleFormat sample_format = AVSampleFormat(stream->codecpar->format);
+    AVSampleFormat sample_format = AVSampleFormat(ctx->sample_fmt);
     int sample_number = av_frame->nb_samples;
     int channel_number = stream->codecpar->channels;
     int sample_rate = stream->codecpar->sample_rate;
@@ -175,7 +175,7 @@ bool Decoder::DecodeAudioPacket(const AVStream *stream, AVCodecContext *ctx,
     // 将 PCM 数据从 av_frame 复制至 sample_data
     sample_format = ExtractPCMData(sample_format, sample_number, channel_number, av_frame, sample_data);
     if (sample_format == AV_SAMPLE_FMT_NONE) {
-      LOG_ERROR << "extract pcm data";
+      LOG_ERROR << "extract pcm data failed";
       return false;
     }
 

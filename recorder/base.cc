@@ -1,5 +1,9 @@
 #include "recorder/base.h"
 
+extern "C" {
+#include "libavutil/samplefmt.h"
+}
+
 namespace live {
 namespace recorder {
 
@@ -41,6 +45,12 @@ bool Input::InitDecodeContext(enum AVMediaType type) {
   }
   stream_idx_ = stream_index;
   stream_ = st;
+  LOG_ERROR << "type: " << av_get_media_type_string(type) << ", stream_index: " << stream_idx_
+    << ", stream_address: " << stream_
+    << ", codec: " << dec->name
+    << ", sample rate: " << stream_->codecpar->sample_rate << ", channel: " << stream_->codecpar->channels
+    << ", sample format in stream: " << stream_->codecpar->format
+    << ", sample format in decode context: " << dec_ctx_->sample_fmt;
   return true;
 }
 
@@ -72,8 +82,31 @@ Input::Input(const InputVideoParam &param, FrameReceiver receiver)
   decoder_future_ = std::move(std::async(std::launch::async, &Input::Decode, this));
 }
 
+Input::Input(const InputAudioParam &param, SampleReceiver receiver)
+  : input_type_(InputType::AUDIO), input_audio_param_(param), sample_receiver_(std::move(receiver)) {
+  if (!sample_receiver_) {
+    throw std::string("receiver is not callable");
+  }
+
+  format_context_ = avformat_alloc_context();
+  input_ = av_find_input_format("avfoundation");
+
+  int ret = avformat_open_input(&format_context_, param.url.c_str(), input_, nullptr);
+
+  if (ret < 0) {
+    throw ::std::string("avformat_open_input failed") + av_err2str(ret);
+  }
+
+  if (!InitDecodeContext(AVMEDIA_TYPE_AUDIO)) {
+    throw std::string("InitDecodeContext failed");
+  }
+
+  decoder_future_ = std::move(std::async(std::launch::async, &Input::Decode, this));
+}
+
 void Input::Decode() {
   std::vector<Frame> frames;
+  std::vector<Sample> samples;
   while (is_alive_) {
     AVPacket *packet = av_packet_alloc();
     if (!packet) {
@@ -87,29 +120,45 @@ void Input::Decode() {
       break;
     }
     if (packet->stream_index == stream_idx_) {
-      frames.resize(0);
-      if (!decoder_.DecodeVideoPacket(stream_, dec_ctx_, packet, &frames)) {
-        LOG_ERROR << "decode failed, url: " << input_video_param_.url; 
-        break;
-      }
-      for (auto &f : frames) {
-        frame_receiver_(std::move(f));
+      if (input_type_ == InputType::VIDEO) {
+        frames.resize(0);
+        if (!decoder_.DecodeVideoPacket(stream_, dec_ctx_, packet, &frames)) {
+          LOG_ERROR << "decode failed, url: " << input_video_param_.url; 
+          break;
+        }
+        for (auto &f : frames) {
+          frame_receiver_(std::move(f));
+        }
+      } else if (input_type_ == InputType::AUDIO) {
+        samples.resize(0);
+        if (!decoder_.DecodeAudioPacket(stream_, dec_ctx_, packet, &samples)) {
+          LOG_ERROR << "decode failed, url: " << input_audio_param_.url; 
+          break;
+        }
+        for (auto &s : samples) {
+          sample_receiver_(std::move(s));
+        }
+      } else {
+        av_packet_free(&packet);
+        throw std::string("undefined input type");
       }
     } else {
       av_packet_free(&packet);
     }
   }
-  LOG_ERROR << "decoding thread exits, url: " << input_video_param_.url;
+  LOG_ERROR << "decoding thread exits, url: " << input_audio_param_.url << input_video_param_.url;
   is_alive_ = false;
 }
 
 Input::~Input() {
   is_alive_ = false;
+  LOG_ERROR << "input is closing, url: " << input_audio_param_.url << input_video_param_.url;
   if (decoder_future_.valid()) {
     decoder_future_.wait();
   }
   avcodec_free_context(&dec_ctx_);
   avformat_close_input(&format_context_);
+  LOG_ERROR << "input is closed, url: " << input_audio_param_.url << input_video_param_.url;
 }
 
 InputVideoParam::InputVideoParam(std::string param) {

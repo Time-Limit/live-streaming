@@ -4,12 +4,15 @@ namespace live {
 namespace util {
 
 Speaker::~Speaker() {
+  Kill();
+  LOG_ERROR << "killed";
+  speak_future_.wait();
+  LOG_ERROR << "speak thread exits";
   if (audio_device_id_ != -1) {
     SDL_CloseAudioDevice(audio_device_id_);
     LOG_ERROR << "close audio device, id: " << audio_device_id_;
     audio_device_id_ = -1;
   }
-  speak_future_.wait();
 }
 
 void Speaker::Speak() {
@@ -34,7 +37,6 @@ void Speaker::SDLAudioDeviceCallbackInternal(Uint8 *stream, int len) {
   while (sample_buffer_.size() < len && sample_queue_.TryToGet(&next)) {
     if (callback_) {
       callback_(&next);
-      // LOG_ERROR << "pts: " << next.param.pts << ", duration: " << next.param.duration;
     }
     sample_buffer_.insert(sample_buffer_.end(), next.data.begin(), next.data.end());
   }
@@ -66,7 +68,11 @@ bool Speaker::ResetAudioDevice(const SampleParam &param) {
   // 转换参数
   desired_audio_spec_.freq = param.sample_rate;
   desired_audio_spec_.channels = param.channel_number;
-  desired_audio_spec_.samples = 1<<10;
+  desired_audio_spec_.samples = 1;
+  while (desired_audio_spec_.samples <= param.sample_number) {
+    desired_audio_spec_.samples <<= 1;
+  }
+  desired_audio_spec_.samples >>= 1;
 
   // 转换 FFmpeg 的 sample_format 至 SDL 的
   switch (param.sample_format) {

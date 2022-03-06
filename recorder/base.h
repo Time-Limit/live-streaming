@@ -35,6 +35,15 @@ struct InputVideoParam {
   int32_t output_w;
   int32_t output_h;
   explicit InputVideoParam(std::string param);
+  InputVideoParam() = default;
+};
+
+struct InputAudioParam {
+  std::string url;
+  explicit InputAudioParam(const std::string &param) {
+    url = param;
+  }
+  InputAudioParam() = default;
 };
 
 class Input {
@@ -56,6 +65,7 @@ class Input {
   std::future<void> decoder_future_;
 
   InputVideoParam input_video_param_;
+  InputAudioParam input_audio_param_;
 
   bool InitDecodeContext(enum AVMediaType type);
 
@@ -63,11 +73,17 @@ class Input {
 
  public:
   using Frame = ::live::util::Frame;
-  using FrameReceiver = std::function<void(Frame &&frame)>;
+  using FrameReceiver = std::function<void(Frame &&)>;
   Input(const InputVideoParam &param, FrameReceiver receiver = [](Frame &&){});
+
+  using Sample = ::live::util::Sample;
+  using SampleReceiver = std::function<void(Sample &&)>;
+  Input(const InputAudioParam &param, SampleReceiver receiver = [](Sample &&){});
+
   ~Input();
  private:
   FrameReceiver frame_receiver_;
+  SampleReceiver sample_receiver_;
 };
 
 }

@@ -2,6 +2,7 @@
 
 #include "recorder/base.h"
 #include "util/renderer.h"
+#include "util/speaker.h"
 
 extern "C" {
 #include <libavutil/frame.h>
@@ -24,10 +25,15 @@ namespace live {
 namespace recorder {
 
 class Context {
-  // 输入视频参数
+  // 输入视频相关变量
   std::vector<InputVideoParam> input_video_params_;
-  std::vector<std::unique_ptr<Input>> inputs_;
+  std::vector<std::unique_ptr<Input>> inputs_videos_;
   std::vector<std::unique_ptr<live::util::Renderer>> renderers_;
+  
+  // 输入音频相关变量
+  std::vector<InputAudioParam> input_audio_params_;
+  std::vector<std::unique_ptr<Input>> inputs_audios_;
+  std::vector<std::unique_ptr<live::util::Speaker>> speakers_;
 
  public:
   Context();

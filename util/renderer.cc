@@ -110,7 +110,8 @@ void Renderer::Render() {
 }
 
 Renderer::Renderer(DelayTimeCalculator calculator)
-  : submit_queue_(100)
+  : is_alive_(true)
+  , submit_queue_(100)
   , render_future_(std::async(std::launch::async, &Renderer::Render, this))
   , delay_time_calculator_(std::move(calculator)) {
   if (!util::ThisThreadIsMainThread()) {
@@ -148,24 +149,7 @@ int Renderer::SDLEvnetFilterInternal(SDL_Event *event) {
 
 Renderer::~Renderer() {
   Kill();
-
   SDL_DelEventWatch(&SDLEvnetFilter, reinterpret_cast<void *>(this));
-
-  render_future_.wait();
-  LOG_ERROR << "rendering thread exits";
-
-  if (renderer_) {
-    SDL_DestroyRenderer(renderer_);
-    renderer_ = nullptr;
-  }
-
-  if (window_ != nullptr) {
-    SDL_DestroyWindow(window_);
-    window_ = nullptr;
-  }
-
-  SDL_DestroyTexture(texture_);
-  texture_ = nullptr;
 }
 
 }

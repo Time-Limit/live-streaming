@@ -81,7 +81,10 @@ class Speaker {
   Speaker& operator=(const Speaker &) = delete;
 
   void Submit(Sample &&sample) {
-    submit_queue_.Put(std::move(sample));
+    if (is_alive_) {
+      //LOG_ERROR << "sample number: " << sample.param.sample_number << ", queue size: " << submit_queue_.Put(std::move(sample));
+      submit_queue_.Put(std::move(sample));
+    }
   }
 
   bool HasPendingData() const {
