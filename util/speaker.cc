@@ -5,14 +5,6 @@ namespace util {
 
 Speaker::~Speaker() {
   Kill();
-  LOG_ERROR << "killed";
-  speak_future_.wait();
-  LOG_ERROR << "speak thread exits";
-  if (audio_device_id_ != -1) {
-    SDL_CloseAudioDevice(audio_device_id_);
-    LOG_ERROR << "close audio device, id: " << audio_device_id_;
-    audio_device_id_ = -1;
-  }
 }
 
 void Speaker::Speak() {

@@ -3,6 +3,8 @@
 namespace live {
 namespace recorder {
 
+DEFINE_string(input_format, "avfoundation", "The short name of the input format, it will be passed to av_find_input_format");
+
 DEFINE_string(input_video, "0:1280x720:uyvy422:30:10_20_1_128_72",
   "{url}:{WxH}:{pix_fmt}:{framerate}:{x_y_z_w_h} 至多有两个，用 ';' 分割");
 

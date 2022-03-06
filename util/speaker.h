@@ -13,6 +13,7 @@ namespace live {
 namespace util {
 
 class Speaker {
+  std::atomic<bool> is_alive_;
   /*
    * @Param param, 如果 param 和 current_sample_param_ 不同则重置
    * @return true 成功，false 失败
@@ -52,7 +53,6 @@ class Speaker {
   // 存放外部提交数据的队列
   util::Queue<Sample> submit_queue_;
   std::future<void> speak_future_;
-  bool is_alive_ = true;
 
   /*
    * @note 会有单独的线程执行此函数。
@@ -72,7 +72,8 @@ class Speaker {
  public:
   Speaker() : Speaker(nullptr) {}
   Speaker(Callback cb)
-    : sample_queue_(1)
+    : is_alive_(true)
+    , sample_queue_(1)
     , speak_future_(std::async(std::launch::async, &Speaker::Speak, this))
     , callback_(std::move(cb)) {}
   ~Speaker();
@@ -81,7 +82,7 @@ class Speaker {
   Speaker& operator=(const Speaker &) = delete;
 
   void Submit(Sample &&sample) {
-    if (is_alive_) {
+    if (is_alive_.load()) {
       //LOG_ERROR << "sample number: " << sample.param.sample_number << ", queue size: " << submit_queue_.Put(std::move(sample));
       submit_queue_.Put(std::move(sample));
     }
@@ -91,8 +92,19 @@ class Speaker {
     return sample_queue_.Size() || submit_queue_.Size();
   }
 
-  void Kill() { is_alive_ = false; }
-  bool IsAlive() { return is_alive_; }
+  void Kill() {
+    if (is_alive_.exchange(false)) {
+      LOG_ERROR << "speak thread is exiting";
+      speak_future_.wait();
+      if (audio_device_id_ != -1) {
+        SDL_CloseAudioDevice(audio_device_id_);
+        LOG_ERROR << "close audio device, id: " << audio_device_id_;
+        audio_device_id_ = -1;
+      }
+      LOG_ERROR << "speak thread is exited";
+    }
+  }
+  bool IsAlive() { return is_alive_.load(); }
 };
 
 }

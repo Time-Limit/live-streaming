@@ -1,4 +1,5 @@
 #include "recorder/base.h"
+#include "recorder/args.h"
 
 extern "C" {
 #include "libavutil/samplefmt.h"
@@ -61,7 +62,7 @@ Input::Input(const InputVideoParam &param, FrameReceiver receiver)
   }
 
   format_context_ = avformat_alloc_context();
-  input_ = av_find_input_format("avfoundation");
+  input_ = av_find_input_format(FLAGS_input_format.c_str());
 
   AVDictionary *dict = nullptr;
   av_dict_set(&dict, "video_size", param.input_w_x_h.c_str(), 0);
@@ -89,7 +90,7 @@ Input::Input(const InputAudioParam &param, SampleReceiver receiver)
   }
 
   format_context_ = avformat_alloc_context();
-  input_ = av_find_input_format("avfoundation");
+  input_ = av_find_input_format(FLAGS_input_format.c_str());
 
   int ret = avformat_open_input(&format_context_, param.url.c_str(), input_, nullptr);
 
@@ -146,7 +147,9 @@ void Input::Decode() {
       av_packet_free(&packet);
     }
   }
-  LOG_ERROR << "decoding thread exits, url: " << input_audio_param_.url << input_video_param_.url;
+  if (is_alive_) {
+    LOG_ERROR << "decoding thread exits, url: " << input_audio_param_.url << input_video_param_.url;
+  }
   is_alive_ = false;
 }
 
