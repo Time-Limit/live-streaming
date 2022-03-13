@@ -16,7 +16,7 @@ recorder-client:
 	g++ -o recorder-client \
 		recorder/main.cc \
 		recorder/context.cc recorder/args.cc recorder/base.cc\
-		util/reader.cc util/decoder.cc util/speaker.cc util/renderer.cc util/env.cc \
+		util/reader.cc util/decoder.cc util/speaker.cc util/renderer.cc util/env.cc util/filter.cc\
 		-std=c++14 \
 		-lgflags -lavutil -lavcodec -lavdevice -lavformat -lavfilter -lswscale \
 		-lz -lswresample -llzma -liconv -lspeex -lmp3lame -lbz2 -lSDL2 \

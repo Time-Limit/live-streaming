@@ -14,7 +14,7 @@ namespace util {
 struct FrameParam {
   uint32_t height = 0; // 高度
   uint32_t width = 0;  // 宽度
-  int32_t linesize = 0; // 行宽
+  int32_t linesize[4] = {0}; // 行宽。和 FFmpeg 的接口对齐，都用长度为 4 的 int32_t 数组。
   int64_t pts = -1; // 播放时间，单位微秒，microsecond
   enum AVPixelFormat pix_fmt = AV_PIX_FMT_NONE; // 格式，当前只会是 yuv420p
 
@@ -29,6 +29,7 @@ struct FrameParam {
 struct Frame {
   FrameParam param; // 该帧的参数
   std::vector<uint8_t> data; // 该帧的像素数据
+  ptrdiff_t data_offset[4] = {0}; // 用于还原 data 和 line_size 数组
 };
 
 #pragma pack (1)

@@ -79,8 +79,6 @@ Input::Input(const InputVideoParam &param, FrameReceiver receiver)
   if (!InitDecodeContext(AVMEDIA_TYPE_VIDEO)) {
     throw std::string("InitDecodeContext failed");
   }
-
-  decoder_future_ = std::move(std::async(std::launch::async, &Input::Decode, this));
 }
 
 Input::Input(const InputAudioParam &param, SampleReceiver receiver)
@@ -102,7 +100,6 @@ Input::Input(const InputAudioParam &param, SampleReceiver receiver)
     throw std::string("InitDecodeContext failed");
   }
 
-  decoder_future_ = std::move(std::async(std::launch::async, &Input::Decode, this));
 }
 
 void Input::Decode() {
@@ -174,13 +171,12 @@ InputVideoParam::InputVideoParam(std::string param) {
   for (auto &c : param) {
     (c == ':') ? (c = '\n') : c;
   }
-  int ret = sscanf(param.c_str(), "%s %s %s %d %d_%d_%d_%d_%d",
+  int ret = sscanf(param.c_str(), "%s %s %s %d",
       url_buf,
       input_w_x_h_buf,
       pix_fmt_buf,
-      &framerate,
-      &output_x, &output_y, &output_z, &output_w, &output_h);
-  if (ret != 9) {
+      &framerate);
+  if (ret != 4) {
     throw std::string("invalid param");
   }
   url = url_buf;
@@ -190,12 +186,26 @@ InputVideoParam::InputVideoParam(std::string param) {
     << ", url: " << url
     << ", input_w_x_h: " << input_w_x_h
     << ", pix_fmt: " << pix_fmt
-    << ", framerate: " << framerate
-    << ", output_x: " << output_x
-    << ", output_y: " << output_y
-    << ", output_z: " << output_z
-    << ", output_w: " << output_w
-    << ", output_h: " << output_h;
+    << ", framerate: " << framerate;
+}
+
+bool Input::Run() {
+  if (is_alive_) {
+    LOG_ERROR << "already killed";
+    return false;
+  }
+
+  if (decoder_future_.valid()) {
+    return true;
+  }
+
+  decoder_future_ = std::move(std::async(std::launch::async, &Input::Decode, this));
+
+  return true;
+}
+
+void Input::Kill() {
+  is_alive_ = false;
 }
 
 }

@@ -32,25 +32,6 @@ bool Decoder::PixelData::Reset(int w, int h, AVPixelFormat fmt) {
   return true;
 }
 
-bool Decoder::ResetSwsContext(int w, int h, AVPixelFormat fmt) {
-  if (sws_pixel_data_.height == h && sws_pixel_data_.width == w && sws_pixel_data_.pix_fmt == fmt) {
-    return true;
-  }
-  if (sws_context_) {
-    sws_freeContext(sws_context_);
-    sws_context_ = nullptr;
-  }
-  sws_context_ = sws_getContext(w, h, fmt, w, h, AV_PIX_FMT_YUV420P, SWS_BILINEAR, nullptr, nullptr, nullptr);
-  if (!sws_context_) {
-    LOG_ERROR << "sws_getContext failed";
-    return false;
-  }
-  if (!sws_pixel_data_.Reset(w, h, AV_PIX_FMT_YUV420P)) {
-    return false;
-  }
-  return true;
-}
-
 bool Decoder::DecodeVideoPacket(const AVStream *stream, AVCodecContext *ctx,
     const AVPacket *pkt, std::vector<Frame> *frames) {
   auto callback = [this, pkt, stream, ctx, frames] (const AVFrame *av_frame) -> bool {
@@ -67,38 +48,17 @@ bool Decoder::DecodeVideoPacket(const AVStream *stream, AVCodecContext *ctx,
         (const uint8_t **)(av_frame->data), av_frame->linesize,
         pix_fmt, width, height);
 
-    std::vector<uint8_t> frame_data;
-    int32_t linesize = pixel_data_.linesize[0];
-
-    // 将其他格式转换为 YUV420P，方便 SDL 处理
-    if (pix_fmt != AV_PIX_FMT_YUV420P) {
-      if (!ResetSwsContext(width, height, pix_fmt)) {
-        LOG_ERROR << "ResetSwsContext failed";
-        return false;
-      }
-
-      height = sws_scale(sws_context_,
-          (const uint8_t * const*)pixel_data_.data, pixel_data_.linesize, 0, height,
-          sws_pixel_data_.data, sws_pixel_data_.linesize);
-
-      frame_data.insert(frame_data.end(),
-          sws_pixel_data_.data[0], sws_pixel_data_.data[0] + sws_pixel_data_.data_size);
-
-      // overwrite linesize and pix_fmt
-      linesize = sws_pixel_data_.linesize[0];
-      pix_fmt = AV_PIX_FMT_YUV420P;
-    } else {
-      frame_data.insert(frame_data.end(), pixel_data_.data[0], pixel_data_.data[0] + pixel_data_.data_size);
-    }
-
     frames->emplace_back();
     Frame &frame = frames->back();
-    frame.data = std::move(frame_data);
     frame.param.height = height;
     frame.param.width = width;
     frame.param.pix_fmt = pix_fmt;
-    frame.param.linesize = linesize;
+    memcpy(frame.param.linesize, pixel_data_.linesize, sizeof(pixel_data_.linesize));
     frame.param.pts = av_frame->pts * 1000000L * stream->time_base.num / stream->time_base.den;
+    frame.data = std::vector<uint8_t>(pixel_data_.data[0], pixel_data_.data[0] + pixel_data_.data_size);
+    for (int i = 1; i < sizeof(pixel_data_.data)/sizeof(pixel_data_.data[0]); i++) {
+      frame.data_offset[i] = pixel_data_.data[i] - pixel_data_.data[0];
+    }
 
     // LOG_ERROR << "video, pts in AVFrame: " << av_frame->pts << ", pts in FrameParam: " << frame.param.pts
     //   << ", stream->time_base: " << stream->time_base.num << "/" << stream->time_base.den;
@@ -179,7 +139,6 @@ bool Decoder::DecodeAudioPacket(const AVStream *stream, AVCodecContext *ctx,
       return false;
     }
 
-    // 写入容器中，供外部使用
     samples->emplace_back();
     Sample &sample = samples->back();
     sample.data = std::move(sample_data);

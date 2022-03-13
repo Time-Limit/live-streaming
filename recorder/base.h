@@ -29,11 +29,6 @@ struct InputVideoParam {
   std::string input_w_x_h;
   std::string pix_fmt;
   int32_t framerate;
-  int32_t output_x;
-  int32_t output_y;
-  int32_t output_z;
-  int32_t output_w;
-  int32_t output_h;
   explicit InputVideoParam(std::string param);
   InputVideoParam() = default;
 };
@@ -79,6 +74,12 @@ class Input {
   using Sample = ::live::util::Sample;
   using SampleReceiver = std::function<void(Sample &&)>;
   Input(const InputAudioParam &param, SampleReceiver receiver = [](Sample &&){});
+
+  bool Run();
+  void Kill();
+  bool IsAlive() const { return is_alive_; }
+  const AVCodecContext* GetCodecContext() const { return dec_ctx_; }
+  const AVStream* GetStream() const {return stream_; }
 
   ~Input();
  private:

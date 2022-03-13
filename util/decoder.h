@@ -79,10 +79,6 @@ class Decoder {
     }
   };
   PixelData pixel_data_;
-
-  SwsContext *sws_context_ = nullptr;
-  PixelData sws_pixel_data_;
-  bool ResetSwsContext(int w, int h, AVPixelFormat fmt);
 };
 
 }

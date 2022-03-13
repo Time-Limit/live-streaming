@@ -11,6 +11,40 @@ extern "C" {
 namespace live {
 namespace util {
 
+bool Renderer::ResetSwsContext(int w, int h, AVPixelFormat fmt) {
+  if (sws_pixel_data_.height == h && sws_pixel_data_.width == w && sws_pixel_data_.pix_fmt == fmt) {
+    return true;
+  }
+  if (sws_context_) {
+    sws_freeContext(sws_context_);
+    sws_context_ = nullptr;
+  }
+  sws_context_ = sws_getContext(w, h, fmt, w, h, AV_PIX_FMT_YUV420P, SWS_BILINEAR, nullptr, nullptr, nullptr);
+  if (!sws_context_) {
+    LOG_ERROR << "sws_getContext failed";
+    return false;
+  }
+  if (!sws_pixel_data_.Reset(w, h, AV_PIX_FMT_YUV420P)) {
+    return false;
+  }
+  return true;
+}
+
+bool Renderer::PixelData::Reset(int w, int h, AVPixelFormat fmt) {
+  if (w == width && h == height && pix_fmt == fmt) {
+    return true;
+  }
+  this->~PixelData();
+  PixelData();
+  data_size = av_image_alloc(data, linesize, w, h, fmt, 1);
+  if (data_size < 0) {
+    LOG_ERROR << "av_image_alloc failed";
+    return false;
+  }
+  w = width, h = height, pix_fmt = fmt;
+  return true;
+}
+
 bool Renderer::ResetTexture(const FrameParam &param) {
   if (param.IsSameWith(current_frame_param_)) {
     return true;
@@ -68,6 +102,37 @@ void Renderer::UpdateRect(SDL_Rect &texture_rect, SDL_Rect &render_rect) {
   // LOG_ERROR << "render: " << render_rect.x << ", " << render_rect.y << ", " << render_rect.w << ", " <<render_rect.h;
 }
 
+bool Renderer::ConvertToYUV420(Frame &frame) {
+  if (frame.param.pix_fmt == AV_PIX_FMT_YUV420P) {
+    return true;
+  }
+
+  if (!ResetSwsContext(frame.param.width, frame.param.height, frame.param.pix_fmt)) {
+    LOG_ERROR << "ResetSwsContext failed";
+    return false;
+  }
+
+  uint8_t *data_ptr[4] = {
+    &frame.data[0],
+    (&frame.data[0]) + frame.data_offset[1],
+    (&frame.data[0]) + frame.data_offset[2],
+    (&frame.data[0]) + frame.data_offset[3]
+  };
+
+  int height = sws_scale(sws_context_,
+      (const uint8_t * const*)data_ptr, frame.param.linesize, 0, frame.param.height,
+      sws_pixel_data_.data, sws_pixel_data_.linesize);
+
+  memcpy(frame.param.linesize, sws_pixel_data_.linesize, sizeof(sws_pixel_data_.linesize));
+  frame.param.pix_fmt = AV_PIX_FMT_YUV420P;
+  frame.param.height = height;
+  auto begin = sws_pixel_data_.data[0];
+  auto end = sws_pixel_data_.data[0] + sws_pixel_data_.data_size;
+  frame.data = std::vector<uint8_t>(begin, end);
+
+  return true;
+}
+
 void Renderer::Render() {
   SDL_Rect texture_rect;
   SDL_Rect render_rect;
@@ -76,6 +141,11 @@ void Renderer::Render() {
     Frame frame;
     if (!submit_queue_.TimedGet(&frame, std::chrono::milliseconds(100))) {
       continue;
+    }
+
+    if (!ConvertToYUV420(frame)) {
+      LOG_ERROR << "ConvertToYUV420 failed";
+      break;
     }
 
     if (!ResetTexture(frame.param)) {
@@ -100,7 +170,7 @@ void Renderer::Render() {
     //outfile.write((const char *)&frame.data[0], frame.data.size());
     //outfile.flush();
 
-    SDL_UpdateTexture(texture_, nullptr, &frame.data[0], frame.param.linesize);
+    SDL_UpdateTexture(texture_, nullptr, &frame.data[0], frame.param.linesize[0]);
     SDL_RenderClear(renderer_);
     SDL_RenderCopy(renderer_, texture_, &texture_rect, &render_rect);
     SDL_RenderPresent(renderer_);
@@ -150,6 +220,10 @@ int Renderer::SDLEvnetFilterInternal(SDL_Event *event) {
 Renderer::~Renderer() {
   Kill();
   SDL_DelEventWatch(&SDLEvnetFilter, reinterpret_cast<void *>(this));
+  if (sws_context_) {
+    sws_freeContext(sws_context_);
+    sws_context_ = nullptr;
+  }
 }
 
 }
