@@ -1,59 +1,74 @@
 #pragma once
 
+#include "util/util.h"
+
 extern "C" {
 #include <libavutil/samplefmt.h>
 #include <libavformat/avformat.h>
 }
 
 #include <vector>
+#include <string>
 
 namespace live {
 namespace util {
 
-#pragma pack (1)
-struct FrameParam {
-  uint32_t height = 0; // 高度
-  uint32_t width = 0;  // 宽度
-  int32_t linesize[4] = {0}; // 行宽。和 FFmpeg 的接口对齐，都用长度为 4 的 int32_t 数组。
-  int64_t pts = -1; // 播放时间，单位微秒，microsecond
-  enum AVPixelFormat pix_fmt = AV_PIX_FMT_NONE; // 格式，当前只会是 yuv420p
-
-  // @Param param 判断和 *this 是否相同
-  // @return 所有字段相同则返回 True，反之返回 False
-  bool IsSameWith(const FrameParam &param) const {
-    return memcmp(this, &param, sizeof(FrameParam)) == 0;
+class AVFrameWrapper {
+  AVFrame *frame = nullptr;;
+ public:
+  AVFrameWrapper() { frame = nullptr; }
+  AVFrameWrapper(AVFrame *&&f) {
+    frame = f;
+    f = nullptr;
   }
-};
-#pragma pack ()
-
-struct Frame {
-  FrameParam param; // 该帧的参数
-  std::vector<uint8_t> data; // 该帧的像素数据
-  ptrdiff_t data_offset[4] = {0}; // 用于还原 data 和 line_size 数组
-};
-
-#pragma pack (1)
-struct SampleParam {
-  int8_t channel_number = 0; // The number of audio channels
-  int32_t sample_rate = 0; // The number of audio samples per second.
-  enum AVSampleFormat sample_format = AV_SAMPLE_FMT_NONE;
-  int32_t sample_number = 0; // 采样数量
-  int64_t pts = -1; //播放时间，单位微秒  microsecond
-  int64_t duration = -1; //播放时长, 单位微秒 microsecond
-
-  // @Param param 判断和 *this 是否相同
-  // @return 除sample_number, pts 和 duration 以外的所有字段相同则返回 True，反之返回 False
-  bool IsSameWith(const SampleParam &rhs) const {
-    return this->channel_number == rhs.channel_number 
-      && this->sample_rate == rhs.sample_rate
-      && this->sample_format == rhs.sample_format;
+  AVFrameWrapper(const AVFrame *f) {
+    frame = av_frame_alloc();
+    if (!frame) {
+      throw std::string("no memory to alloc AVFrame");
+    }
+    av_frame_ref(frame, f);
   }
-};
-#pragma pack ()
+  
+  AVFrameWrapper(const AVFrameWrapper &rhs) {
+    if (!rhs.frame) {
+      return;
+    }
+    frame = av_frame_alloc();
+    if (!frame) {
+      throw std::string("no memory to alloc AVFrame");
+    }
+    av_frame_ref(frame, rhs.frame);
+  }
+  AVFrameWrapper(AVFrameWrapper &&rhs) {
+    frame = rhs.frame;
+    rhs.frame = nullptr;
+  }
 
-struct Sample {
-  SampleParam param; // 采样参数
-  std::vector<uint8_t> data; // 采样点数据
+  AVFrameWrapper& operator= (const AVFrameWrapper &rhs) {
+    if (!frame) {
+      frame = av_frame_alloc();
+      if (!frame) {
+        throw std::string("no memory to alloc AVFrame");
+      }
+    }
+    av_frame_ref(frame, rhs.frame);
+    return *this;
+  }
+  AVFrameWrapper& operator= (AVFrameWrapper &&rhs) {
+    av_frame_free(&frame);
+    frame = rhs.frame;
+    rhs.frame = nullptr;
+    return *this;
+  }
+
+  ~AVFrameWrapper() {
+    av_frame_free(&frame);
+  }
+
+  AVFrame* operator->() { return frame; }
+  const AVFrame* operator->() const { return frame; }
+  AVFrame* GetRawPtr() { return frame; }
+  const AVFrame* GetRawPtr() const { return frame; }
 };
 
 }

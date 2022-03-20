@@ -31,9 +31,13 @@ class Renderer {
   }
   int SDLEvnetFilterInternal(SDL_Event *event);
 
-  FrameParam current_frame_param_;
+  struct {
+    int height;
+    int width;
+    int pix_fmt;
+  } param_for_texture_;
 
-  util::Queue<Frame> submit_queue_;
+  util::Queue<AVFrameWrapper> submit_queue_;
 
   std::future<void> render_future_;
 
@@ -45,7 +49,7 @@ class Renderer {
    * @Param param, 根据该参数重置 texture 的相关参数，如宽高
    * @return true 成功，false 失败
    */
-  bool ResetTexture(const FrameParam &param);
+  bool ResetTexture(int height, int width, AVPixelFormat pix_fmt);
 
   /*
    * @note 根据 current_frame_param_ 和 window size 计算合适的宽高和位置，实现等比例缩放和画面居中
@@ -58,7 +62,7 @@ class Renderer {
   // 该逻辑目前需由外部指定，未提供默认的实现方式。
   // 入参：待播放帧的 pts，单位微秒
   // 返回值：延迟时长，单位毫秒
-  using DelayTimeCalculator = std::function<int64_t(int64_t)>;
+  using DelayTimeCalculator = std::function<int64_t(const AVFrameWrapper &)>;
 
  private:
   DelayTimeCalculator delay_time_calculator_;
@@ -86,7 +90,7 @@ class Renderer {
   SwsContext *sws_context_ = nullptr;
   PixelData sws_pixel_data_;
   bool ResetSwsContext(int w, int h, AVPixelFormat fmt);
-  bool ConvertToYUV420(Frame &frame);
+  bool ConvertToYUYV422(AVFrameWrapper &frame);
 
  public:
   /*
@@ -102,7 +106,7 @@ class Renderer {
   /*
    * @Param frame, 将 frame 提交至待播放队列，Render 函数会依次渲染队列中的数据。
    */
-  void Submit(Frame &&frame) {
+  void Submit(AVFrameWrapper &&frame) {
     while (is_alive_ && !submit_queue_.TimedPut(std::move(frame), std::chrono::milliseconds(100))) {
     }
   }

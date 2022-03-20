@@ -9,6 +9,11 @@
 #include <thread>
 #include <future>
 
+extern "C" {
+#include <libswresample/swresample.h>
+#include <libavutil/opt.h>
+}
+
 namespace live {
 namespace util {
 
@@ -18,7 +23,7 @@ class Speaker {
    * @Param param, 如果 param 和 current_sample_param_ 不同则重置
    * @return true 成功，false 失败
    */
-  bool ResetAudioDevice(const SampleParam &param);
+  bool ResetAudioDevice(int channel_number, int sample_rate, AVSampleFormat sample_format);
 
   /*
    * @Param userdata, 指向 Speaker 对象的指针
@@ -39,7 +44,11 @@ class Speaker {
   SDL_AudioDeviceID audio_device_id_ = -1;
 
   // audio_device_id_ 使用的参数
-  SampleParam current_sample_param_;
+  struct {
+    int channel_number;
+    int sample_rate;
+    AVSampleFormat sample_format;
+  } param_for_device_;
 
   // 和 current_sample_param_ 的数据一致，只是格式不同
   SDL_AudioSpec desired_audio_spec_;
@@ -48,11 +57,25 @@ class Speaker {
   std::vector<uint8_t> sample_buffer_;
 
   // 和 SDLAudioDeviceCallback 线程交互的队列 
-  util::Queue<Sample> sample_queue_;
+  util::Queue<AVFrameWrapper> sample_queue_;
 
   // 存放外部提交数据的队列
-  util::Queue<Sample> submit_queue_;
+  util::Queue<AVFrameWrapper> submit_queue_;
   std::future<void> speak_future_;
+
+  // 用于转换格式的 SwrContext
+  SwrContext *swr_ctx_ = nullptr;
+
+  // swr_ctx 的辅助数据
+  int swr_channel_layout_;
+  int swr_sample_rate_;
+  AVSampleFormat swr_in_sample_fmt_;
+  AVSampleFormat swr_out_sample_fmt_;
+
+  // 将 Planar 格式的采样转为 Packed 格式
+  bool ConvertPlanarSampleToPacked(AVFrameWrapper &sample);
+
+  bool ResetSwresampleContext(int channel_layout, int sample_rate, AVSampleFormat in, AVSampleFormat out);
 
   /*
    * @note 会有单独的线程执行此函数。
@@ -64,7 +87,7 @@ class Speaker {
  public:
   // 外部调用 Sumbit 后，音频并未立即播放。可通过设置类型的回调函数获悉播放时机。
   // 会在提交至SDL之前调用该函数。
-  using Callback = std::function<void(const Sample *)>;
+  using Callback = std::function<void(const AVFrameWrapper &)>;
 
  private:
   Callback callback_;
@@ -81,12 +104,7 @@ class Speaker {
   Speaker(const Speaker &) = delete;
   Speaker& operator=(const Speaker &) = delete;
 
-  void Submit(Sample &&sample) {
-    if (is_alive_.load()) {
-      //LOG_ERROR << "sample number: " << sample.param.sample_number << ", queue size: " << submit_queue_.Put(std::move(sample));
-      submit_queue_.Put(std::move(sample));
-    }
-  }
+  void Submit(AVFrameWrapper &&sample);
 
   bool HasPendingData() const {
     return sample_queue_.Size() || submit_queue_.Size();
@@ -104,6 +122,7 @@ class Speaker {
       LOG_ERROR << "speak thread is exited";
     }
   }
+
   bool IsAlive() { return is_alive_.load(); }
 };
 

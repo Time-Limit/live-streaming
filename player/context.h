@@ -1,5 +1,6 @@
 #include "util/reader.h"
 #include "util/util.h"
+#include "util/base.h"
 
 extern "C" {
 #include <libavutil/frame.h>
@@ -104,7 +105,8 @@ class Context {
    *
    * @note 该函数目前只给 Renderer 使用，用于和 Speaker 同步。
    */
-  int64_t CalcDelayTimeInMicroSecond(int64_t time_point) {
+  int64_t CalcDelayTimeInMicroSecond(const util::AVFrameWrapper &frame) {
+    int64_t time_point = frame->pts * 1000000L * frame->time_base.num / frame->time_base.den;
     TimeInterval ti = playing_time_interval_.load();
     if (time_point <= ti.start) {
       return 0;
@@ -123,7 +125,9 @@ class Context {
    * @Param start, 当前正在播放的音频片段的起始 pts
    * @Param duration, 当前正在播放的音频片段的播放时长
    */
-  void UpdatePlayingTimeInterval(int64_t start, int64_t duration) {
+  void UpdatePlayingTimeInterval(const util::AVFrameWrapper &frame) {
+    int64_t start = frame->pts * 1000000L * frame->time_base.num / frame->time_base.den;
+    int64_t duration = frame->nb_samples * 1000000L * frame->time_base.num / frame->time_base.den;
     playing_time_interval_.store({start, duration, alive_micro_seconds_});
   }
 

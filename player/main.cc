@@ -46,13 +46,13 @@ int main(int argc, char **argv) {
   };
   auto read_future = std::async(std::launch::async, std::move(read_func));
 
-  Renderer renderer([&context](int64_t time_point) {
-    return context.CalcDelayTimeInMicroSecond(time_point);
+  Renderer renderer([&context](const AVFrameWrapper &frame) {
+    return context.CalcDelayTimeInMicroSecond(frame);
   });
   auto decode_video_packet_func = [&context, &video_packet_q_, &renderer, &quit_flag] () {
     Decoder decoder;
     AVPacket *packet = nullptr;
-    std::vector<Frame> frames;
+    std::vector<AVFrameWrapper> frames;
     auto stream = context.GetVideoStream();
     auto decode_context = context.GetVideoCodecContext();
 
@@ -74,13 +74,14 @@ int main(int argc, char **argv) {
   };
   auto video_decoder_future = std::async(std::launch::async, std::move(decode_video_packet_func));
 
-  Speaker speaker([&context](const Sample *sample){
-    context.UpdatePlayingTimeInterval(sample->param.pts, sample->param.duration);
+  Speaker speaker([&context](const AVFrameWrapper &sample){
+    context.UpdatePlayingTimeInterval(sample);
+    //context.UpdatePlayingTimeInterval(sample.GetSideData().pts, sample.GetSideData().duration);
   });
   auto decode_audio_packet_func = [&context, &audio_packet_q_, &speaker, &quit_flag] () {
     Decoder decoder;
     AVPacket *packet = nullptr;
-    std::vector<Sample> samples;
+    std::vector<AVFrameWrapper> samples;
     auto stream = context.GetAudioStream();
     auto decode_context = context.GetAudioCodecContext();
 

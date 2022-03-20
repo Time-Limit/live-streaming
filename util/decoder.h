@@ -21,8 +21,7 @@ extern "C" {
 namespace live {
 namespace util {
 
-class Frame;
-class Sample;
+class AVFrameWrapper;
 
 class Decoder {
  public:
@@ -37,13 +36,13 @@ class Decoder {
    * @return true 解码成功，false 解码失败
    */
   bool DecodeVideoPacket(const AVStream *stream, AVCodecContext *ctx,
-      const AVPacket *pkt, std::vector<Frame> *frames);
+      const AVPacket *pkt, std::vector<AVFrameWrapper> *frames);
   /*
    * @Param samples, 用于存放解码后的音频数据，其他参数和 DecodeVideoPacket 相同
    * @return true 解码成功，false 解码失败
    */
   bool DecodeAudioPacket(const AVStream *stream, AVCodecContext *ctx,
-      const AVPacket *pkt, std::vector<Sample> *samples);
+      const AVPacket *pkt, std::vector<AVFrameWrapper> *samples);
 
  private:
   // 从 AVPacket 解码音频帧和视频帧的流程很相似，只有从 AVFrame 提取 YUV 和 PCM 的部分有差异。

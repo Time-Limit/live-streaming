@@ -33,7 +33,7 @@ bool Decoder::PixelData::Reset(int w, int h, AVPixelFormat fmt) {
 }
 
 bool Decoder::DecodeVideoPacket(const AVStream *stream, AVCodecContext *ctx,
-    const AVPacket *pkt, std::vector<Frame> *frames) {
+    const AVPacket *pkt, std::vector<AVFrameWrapper> *frames) {
   auto callback = [this, pkt, stream, ctx, frames] (const AVFrame *av_frame) -> bool {
 
     int width = ctx->width;
@@ -48,17 +48,9 @@ bool Decoder::DecodeVideoPacket(const AVStream *stream, AVCodecContext *ctx,
         (const uint8_t **)(av_frame->data), av_frame->linesize,
         pix_fmt, width, height);
 
-    frames->emplace_back();
-    Frame &frame = frames->back();
-    frame.param.height = height;
-    frame.param.width = width;
-    frame.param.pix_fmt = pix_fmt;
-    memcpy(frame.param.linesize, pixel_data_.linesize, sizeof(pixel_data_.linesize));
-    frame.param.pts = av_frame->pts * 1000000L * stream->time_base.num / stream->time_base.den;
-    frame.data = std::vector<uint8_t>(pixel_data_.data[0], pixel_data_.data[0] + pixel_data_.data_size);
-    for (int i = 1; i < sizeof(pixel_data_.data)/sizeof(pixel_data_.data[0]); i++) {
-      frame.data_offset[i] = pixel_data_.data[i] - pixel_data_.data[0];
-    }
+    frames->emplace_back(av_frame);
+    AVFrameWrapper &frame = frames->back();
+    frame->time_base = stream->time_base;
 
     // LOG_ERROR << "video, pts in AVFrame: " << av_frame->pts << ", pts in FrameParam: " << frame.param.pts
     //   << ", stream->time_base: " << stream->time_base.num << "/" << stream->time_base.den;
@@ -122,7 +114,7 @@ AVSampleFormat ExtractPCMData(AVSampleFormat sample_format, int sample_number, i
 }
 
 bool Decoder::DecodeAudioPacket(const AVStream *stream, AVCodecContext *ctx,
-    const AVPacket *pkt, std::vector<Sample> *samples) {
+    const AVPacket *pkt, std::vector<AVFrameWrapper> *samples) {
 
   auto callback = [pkt, stream, samples, ctx] (const AVFrame *av_frame) -> bool {
     // enum AVSampleFormat 定义参见 FFmpeg/libavutil/samplefmt.h
@@ -133,21 +125,15 @@ bool Decoder::DecodeAudioPacket(const AVStream *stream, AVCodecContext *ctx,
     std::vector<uint8_t> sample_data;
 
     // 将 PCM 数据从 av_frame 复制至 sample_data
-    sample_format = ExtractPCMData(sample_format, sample_number, channel_number, av_frame, sample_data);
-    if (sample_format == AV_SAMPLE_FMT_NONE) {
-      LOG_ERROR << "extract pcm data failed";
-      return false;
-    }
+    //sample_format = ExtractPCMData(sample_format, sample_number, channel_number, av_frame, sample_data);
+    //if (sample_format == AV_SAMPLE_FMT_NONE) {
+    //  LOG_ERROR << "extract pcm data failed";
+    //  return false;
+    //}
 
-    samples->emplace_back();
-    Sample &sample = samples->back();
-    sample.data = std::move(sample_data);
-    sample.param.channel_number = channel_number;
-    sample.param.sample_rate = sample_rate;
-    sample.param.sample_number = sample_number;
-    sample.param.sample_format = sample_format;
-    sample.param.pts = av_frame->pts * 1000000L * stream->time_base.num / stream->time_base.den;
-    sample.param.duration = sample_number * 1000000L * stream->time_base.num / stream->time_base.den;
+    samples->emplace_back(av_frame);
+    AVFrameWrapper &sample = samples->back();
+    sample->time_base = stream->time_base;
     
     //LOG_ERROR << "audio, pts in AVFrame: " << av_frame->pts << ", pts in FrameParam: " << sample.param.pts
     //  << ", duration: " << sample.param.duration

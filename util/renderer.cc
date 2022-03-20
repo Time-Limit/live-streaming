@@ -19,12 +19,12 @@ bool Renderer::ResetSwsContext(int w, int h, AVPixelFormat fmt) {
     sws_freeContext(sws_context_);
     sws_context_ = nullptr;
   }
-  sws_context_ = sws_getContext(w, h, fmt, w, h, AV_PIX_FMT_YUV420P, SWS_BILINEAR, nullptr, nullptr, nullptr);
+  sws_context_ = sws_getContext(w, h, fmt, w, h, AV_PIX_FMT_YUYV422, SWS_BILINEAR, nullptr, nullptr, nullptr);
   if (!sws_context_) {
     LOG_ERROR << "sws_getContext failed";
     return false;
   }
-  if (!sws_pixel_data_.Reset(w, h, AV_PIX_FMT_YUV420P)) {
+  if (!sws_pixel_data_.Reset(w, h, AV_PIX_FMT_YUYV422)) {
     return false;
   }
   return true;
@@ -45,38 +45,44 @@ bool Renderer::PixelData::Reset(int w, int h, AVPixelFormat fmt) {
   return true;
 }
 
-bool Renderer::ResetTexture(const FrameParam &param) {
-  if (param.IsSameWith(current_frame_param_)) {
+bool Renderer::ResetTexture(int height, int width, AVPixelFormat pix_fmt) {
+  if (texture_
+      && param_for_texture_.height == height
+      && param_for_texture_.width == width
+      && param_for_texture_.pix_fmt == pix_fmt) {
     return true;
   }
+
   if (texture_) {
     SDL_DestroyTexture(texture_);
     texture_ = nullptr;
   }
 
-  if (param.pix_fmt != AV_PIX_FMT_YUV420P) {
-    LOG_ERROR << "not handled this format " << av_get_pix_fmt_name(param.pix_fmt);
+  if (pix_fmt != AV_PIX_FMT_YUYV422) {
+    LOG_ERROR << "not handled this format " << av_get_pix_fmt_name(pix_fmt);
     return false;
   }
 
   texture_ = SDL_CreateTexture(renderer_,
-      SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING,
-      param.width, param.height);
+      SDL_PIXELFORMAT_YUY2, SDL_TEXTUREACCESS_STREAMING,
+      width, height);
 
   if (texture_ == nullptr) {
     LOG_ERROR << "create texture failed, " << SDL_GetError();
     return false;
   }
 
-  current_frame_param_ = param;
+  param_for_texture_.height = height;
+  param_for_texture_.width = width;
+  param_for_texture_.pix_fmt = pix_fmt;
 
   return true;
 }
 
 void Renderer::UpdateRect(SDL_Rect &texture_rect, SDL_Rect &render_rect) {
   texture_rect.x = 0, texture_rect.y = 0;
-  texture_rect.w = current_frame_param_.width;
-  texture_rect.h = current_frame_param_.height;
+  texture_rect.w = param_for_texture_.width;
+  texture_rect.h = param_for_texture_.height;
   int w = 0, h = 0;
   SDL_GetWindowSize(window_, &w, &h);
   if (texture_rect.w*1.0/w > texture_rect.h*1.0/h) {
@@ -102,33 +108,30 @@ void Renderer::UpdateRect(SDL_Rect &texture_rect, SDL_Rect &render_rect) {
   // LOG_ERROR << "render: " << render_rect.x << ", " << render_rect.y << ", " << render_rect.w << ", " <<render_rect.h;
 }
 
-bool Renderer::ConvertToYUV420(Frame &frame) {
-  if (frame.param.pix_fmt == AV_PIX_FMT_YUV420P) {
+bool Renderer::ConvertToYUYV422(AVFrameWrapper &frame) {
+  if (frame->format == AV_PIX_FMT_YUYV422) {
     return true;
   }
 
-  if (!ResetSwsContext(frame.param.width, frame.param.height, frame.param.pix_fmt)) {
+  if (!ResetSwsContext(frame->width, frame->height, AVPixelFormat(frame->format))) {
     LOG_ERROR << "ResetSwsContext failed";
     return false;
   }
 
-  uint8_t *data_ptr[4] = {
-    &frame.data[0],
-    (&frame.data[0]) + frame.data_offset[1],
-    (&frame.data[0]) + frame.data_offset[2],
-    (&frame.data[0]) + frame.data_offset[3]
-  };
+  AVFrameWrapper new_frame(av_frame_alloc());
+  if (!new_frame.GetRawPtr()) {
+    LOG_ERROR << "alloc frame failed";
+    return false;
+  }
+  int ret = sws_scale_frame(sws_context_, new_frame.GetRawPtr(), frame.GetRawPtr());
+  if (ret < 0) {
+    LOG_ERROR << "scale failed, error: " << av_err2str(ret);
+    return false;
+  }
 
-  int height = sws_scale(sws_context_,
-      (const uint8_t * const*)data_ptr, frame.param.linesize, 0, frame.param.height,
-      sws_pixel_data_.data, sws_pixel_data_.linesize);
-
-  memcpy(frame.param.linesize, sws_pixel_data_.linesize, sizeof(sws_pixel_data_.linesize));
-  frame.param.pix_fmt = AV_PIX_FMT_YUV420P;
-  frame.param.height = height;
-  auto begin = sws_pixel_data_.data[0];
-  auto end = sws_pixel_data_.data[0] + sws_pixel_data_.data_size;
-  frame.data = std::vector<uint8_t>(begin, end);
+  new_frame->pts = frame->pts;
+  new_frame->time_base = frame->time_base;
+  frame = std::move(new_frame);
 
   return true;
 }
@@ -138,22 +141,22 @@ void Renderer::Render() {
   SDL_Rect render_rect;
 
   while (is_alive_) {
-    Frame frame;
+    AVFrameWrapper frame;
     if (!submit_queue_.TimedGet(&frame, std::chrono::milliseconds(100))) {
       continue;
     }
 
-    if (!ConvertToYUV420(frame)) {
-      LOG_ERROR << "ConvertToYUV420 failed";
+    if (!ConvertToYUYV422(frame)) {
+      LOG_ERROR << "ConvertToYUYV422 failed";
       break;
     }
 
-    if (!ResetTexture(frame.param)) {
+    if (!ResetTexture(frame->height, frame->width, AVPixelFormat(frame->format))) {
       LOG_ERROR << "ResetTexture failed";
       break;
     }
 
-    int64_t delay_time = delay_time_calculator_(frame.param.pts);
+    int64_t delay_time = delay_time_calculator_(frame);
     if (delay_time > 0) {
       std::this_thread::sleep_for(std::chrono::microseconds(delay_time));
     }
@@ -170,7 +173,7 @@ void Renderer::Render() {
     //outfile.write((const char *)&frame.data[0], frame.data.size());
     //outfile.flush();
 
-    SDL_UpdateTexture(texture_, nullptr, &frame.data[0], frame.param.linesize[0]);
+    SDL_UpdateTexture(texture_, nullptr, frame->data[0], frame->linesize[0]);
     SDL_RenderClear(renderer_);
     SDL_RenderCopy(renderer_, texture_, &texture_rect, &render_rect);
     SDL_RenderPresent(renderer_);
