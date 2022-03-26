@@ -37,6 +37,16 @@ struct StreamLog {
   }
 };
 
+template<typename EF>
+class ScopeGuard {
+  EF exit_function_;
+ public:
+  ScopeGuard(EF &&ef) : exit_function_(std::move(ef)) {}
+  ~ScopeGuard() { exit_function_(); }
+  ScopeGuard(const ScopeGuard &) = delete;
+  ScopeGuard& operator= (const ScopeGuard &) = delete;
+};
+
 }
 }
 

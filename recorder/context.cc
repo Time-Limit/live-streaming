@@ -13,7 +13,9 @@ Context::Context() {
   avdevice_register_all();
 
   const std::string &input_video_params = FLAGS_input_video;
-  const bool enable_debug_render = FLAGS_enable_debug_renderer;
+  const bool enable_debug_renderer = FLAGS_enable_debug_renderer;
+  const bool enable_debug_speaker = FLAGS_enable_debug_speaker;
+  const bool enable_output_pts_info = FLAGS_enable_output_pts_info;
 
   // 初始化输入视频参数
   for (int pos = 0, next = 0; pos < input_video_params.size();) {
@@ -26,11 +28,7 @@ Context::Context() {
     }
   }
 
-  //if (input_video_params_.empty() && input_video_params_.size() > 2) {
-  //  throw std::string("input_video_params is invalid, it should be less equal than 2 and greater than 0");
-  //}
-  
-  if (input_video_params_.empty() && input_video_params_.size() == 2) {
+  if (input_video_params_.empty() || input_video_params_.size() != 2) {
     throw std::string("input_video_params is invalid, it should be equal to two");
   }
 
@@ -47,14 +45,14 @@ Context::Context() {
     LOG_ERROR << desc.str();\
   }
 
-  input_videos_.emplace_back(std::make_unique<Input>(input_video_params_[0], [this](Input::Frame &&frame) {
+  input_videos_.emplace_back(std::make_unique<Input>(input_video_params_[0], [this](util::AVFrameWrapper &&frame) {
     static std::string input = "main";
-    filter->Sumbit(input, std::move(frame));
+    filter_->Submit(input, std::move(frame));
   }));
 
-  input_videos_.emplace_back(std::make_unique<Input>(input_video_params_[1], [this](Input::Frame &&frame) {
+  input_videos_.emplace_back(std::make_unique<Input>(input_video_params_[1], [this](util::AVFrameWrapper &&frame) {
     static std::string input = "minor";
-    filter->Sumbit(input, std::move(frame));
+    filter_->Submit(input, std::move(frame));
   }));
 
   WriteDescription(main_desc, input_videos_[0]);
@@ -62,33 +60,35 @@ Context::Context() {
 
 #undef WriteDescription
 
+  live::util::Renderer *debug_render = nullptr;
+  if (enable_debug_renderer) {
+    debug_renderers_.emplace_back(std::make_unique<::live::util::Renderer>(
+          [] (const util::AVFrameWrapper &) -> int64_t { return 0; }
+          ));
+    debug_render = debug_renderers_.back().get();
+  }
+
   filter_.reset(new util::Filter(
     {
       {std::string("main"), main_desc.str()},
       {std::string("minor"), minor_desc.str()}
     },
-    {
-      {std::string("ouput"), std::string()}
-    },
-    "[minor]scale=w=160:h=320[scaled_minor],[scaled_minor]vflip[fliped_scaled_minor],[main][filped_scaled_minor]overlay[output]"
+    std::string("output"), std::string(),
+    "[minor]scale=w=480:h=-1[scaled_minor],[scaled_minor]hflip[fliped_scaled_minor],[main][fliped_scaled_minor]overlay[output]",
+    [debug_render, enable_output_pts_info] (const util::AVFrameWrapper &wrapper) {
+      if (enable_output_pts_info) {
+        LOG_ERROR << "video: " << wrapper->pts << ", time_base: " << wrapper->time_base.num << '/' << wrapper->time_base.den;
+      }
+      if (debug_render) {
+        auto tmp = wrapper;
+        debug_render->Submit(std::move(tmp));
+      }
+    }
   ));
 
-  //for (const auto &param : input_video_params_) {
-  //  live::util::Renderer *debug_render = nullptr;
-  //  if (enable_debug_render) {
-  //    debug_renderers_.emplace_back(std::make_unique<::live::util::Renderer>(
-  //          [] (uint64_t point) -> uint64_t { return 0; }
-  //    ));
-  //    debug_render = debug_renderers_.back().get();
-  //  }
-  //  input_videos_.emplace_back(std::make_unique<Input>(param,
-  //    [this, ptr = debug_render] (Input::Frame &&frame) {
-  //      if (ptr) {
-  //        ptr->Submit(std::move(frame));
-  //      }
-  //    }
-  //  ));
-  //}
+  for (auto &input : input_videos_) {
+    input->Run();
+  }
 
   const std::string &input_audio_params = FLAGS_input_audio;
   // 初始化输入音频参数
@@ -106,14 +106,29 @@ Context::Context() {
     throw std::string("input_audio_params is invalid, it must have one input audio parameter");
   }
 
+  live::util::Speaker *debug_speaker = nullptr;
+
+  if (enable_debug_speaker) {
+    debug_speakers_.emplace_back(std::make_unique<::live::util::Speaker>());
+    debug_speaker = debug_speakers_.back().get();
+  }
+
   for (const auto &param : input_audio_params_) {
-    inputs_audios_.emplace_back(std::make_unique<Input>(param,
-      [this] (Input::Sample &&sample) {
-        // static std::ofstream ofile ("test.pcm",std::ofstream::binary);
-        // ofile.write(reinterpret_cast<const char *>(&sample.data[0]), sample.data.size());
-        // ofile.flush();
+    input_audios_.emplace_back(std::make_unique<Input>(param,
+      [this, debug_speaker, enable_output_pts_info] (util::AVFrameWrapper &&sample) {
+        if (enable_output_pts_info) {
+          LOG_ERROR << "audio: " << sample->pts << ", time_base: " <<sample->time_base.num << '/' << sample->time_base.den;
+        }
+        if (debug_speaker) {
+          auto tmp = sample;
+          debug_speaker->Submit(std::move(tmp));
+        }
       }
     ));
+  }
+
+  for (auto &input : input_audios_) {
+    input->Run();
   }
 }
 

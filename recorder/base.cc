@@ -81,9 +81,9 @@ Input::Input(const InputVideoParam &param, FrameReceiver receiver)
   }
 }
 
-Input::Input(const InputAudioParam &param, SampleReceiver receiver)
-  : input_type_(InputType::AUDIO), input_audio_param_(param), sample_receiver_(std::move(receiver)) {
-  if (!sample_receiver_) {
+Input::Input(const InputAudioParam &param, FrameReceiver receiver)
+  : input_type_(InputType::AUDIO), input_audio_param_(param), frame_receiver_(std::move(receiver)) {
+  if (!frame_receiver_) {
     throw std::string("receiver is not callable");
   }
 
@@ -103,51 +103,50 @@ Input::Input(const InputAudioParam &param, SampleReceiver receiver)
 }
 
 void Input::Decode() {
-  std::vector<Frame> frames;
-  std::vector<Sample> samples;
+  std::vector<AVFrameWrapper> frames;
+  AVPacket *packet = av_packet_alloc();
+  auto clean_action = [packet, this] () mutable {
+    av_packet_free(&packet);
+    is_alive_ = false;
+  };
+
+  util::ScopeGuard<decltype(clean_action)> clean_action_guard(std::move(clean_action));
+
+  if (!packet) {
+    LOG_ERROR << "could not allocate packet";
+    return;
+  }
   while (is_alive_) {
-    AVPacket *packet = av_packet_alloc();
-    if (!packet) {
-      LOG_ERROR << "could not allocate packet";
-      break;
-    }
     int ret = 0;
+    av_packet_unref(packet);
     if ((ret = av_read_frame(format_context_, packet)) < 0) {
       if (ret == AVERROR(EAGAIN)) { continue; }
       LOG_ERROR << "av_read_frame failed, ret: " << ret << ", err: " << av_err2str(ret);
       break;
     }
     if (packet->stream_index == stream_idx_) {
+      frames.resize(0);
       if (input_type_ == InputType::VIDEO) {
-        frames.resize(0);
         if (!decoder_.DecodeVideoPacket(stream_, dec_ctx_, packet, &frames)) {
           LOG_ERROR << "decode failed, url: " << input_video_param_.url; 
           break;
         }
-        for (auto &f : frames) {
-          frame_receiver_(std::move(f));
-        }
       } else if (input_type_ == InputType::AUDIO) {
-        samples.resize(0);
-        if (!decoder_.DecodeAudioPacket(stream_, dec_ctx_, packet, &samples)) {
+        if (!decoder_.DecodeAudioPacket(stream_, dec_ctx_, packet, &frames)) {
           LOG_ERROR << "decode failed, url: " << input_audio_param_.url; 
           break;
         }
-        for (auto &s : samples) {
-          sample_receiver_(std::move(s));
-        }
       } else {
-        av_packet_free(&packet);
         throw std::string("undefined input type");
       }
-    } else {
-      av_packet_free(&packet);
+      for (auto &f : frames) {
+        frame_receiver_(std::move(f));
+      }
     }
   }
   if (is_alive_) {
     LOG_ERROR << "decoding thread exits, url: " << input_audio_param_.url << input_video_param_.url;
   }
-  is_alive_ = false;
 }
 
 Input::~Input() {
@@ -190,7 +189,7 @@ InputVideoParam::InputVideoParam(std::string param) {
 }
 
 bool Input::Run() {
-  if (is_alive_) {
+  if (!is_alive_) {
     LOG_ERROR << "already killed";
     return false;
   }

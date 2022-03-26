@@ -22,6 +22,9 @@ class AVFrameWrapper {
     f = nullptr;
   }
   AVFrameWrapper(const AVFrame *f) {
+    if (!f) {
+      return;
+    }
     frame = av_frame_alloc();
     if (!frame) {
       throw std::string("no memory to alloc AVFrame");
@@ -39,6 +42,7 @@ class AVFrameWrapper {
     }
     av_frame_ref(frame, rhs.frame);
   }
+
   AVFrameWrapper(AVFrameWrapper &&rhs) {
     frame = rhs.frame;
     rhs.frame = nullptr;
@@ -51,9 +55,11 @@ class AVFrameWrapper {
         throw std::string("no memory to alloc AVFrame");
       }
     }
+    av_frame_unref(frame);
     av_frame_ref(frame, rhs.frame);
     return *this;
   }
+
   AVFrameWrapper& operator= (AVFrameWrapper &&rhs) {
     av_frame_free(&frame);
     frame = rhs.frame;

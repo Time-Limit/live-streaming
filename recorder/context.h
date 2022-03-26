@@ -26,23 +26,35 @@ namespace live {
 namespace recorder {
 
 class Context {
-  // 输入视频相关变量
-  std::vector<InputVideoParam> input_video_params_;
-  std::vector<std::unique_ptr<Input>> input_videos_;
+  // 调试用的Renderer 和 Speaker
   std::vector<std::unique_ptr<live::util::Renderer>> debug_renderers_;
-  
-  // 输入音频相关变量
-  std::vector<InputAudioParam> input_audio_params_;
-  std::vector<std::unique_ptr<Input>> inputs_audios_;
+  std::vector<std::unique_ptr<live::util::Speaker>> debug_speakers_;
 
   // 滤镜
   std::unique_ptr<util::Filter> filter_;
 
+  // 输入视频相关变量
+  std::vector<InputVideoParam> input_video_params_;
+  std::vector<std::unique_ptr<Input>> input_videos_;
+  
+  // 输入音频相关变量
+  std::vector<InputAudioParam> input_audio_params_;
+  std::vector<std::unique_ptr<Input>> input_audios_;
+
+
  public:
   Context();
   bool IsAlive() {
-    for (auto &u : debug_renderers_) {
-      if (u->IsAlive()) {
+    if (!filter_->IsAlive()) {
+      return false;
+    }
+    for (auto &input : input_videos_) {
+      if (input->IsAlive()) {
+        return true;
+      }
+    }
+    for (auto &input : input_audios_) {
+      if (input->IsAlive()) {
         return true;
       }
     }

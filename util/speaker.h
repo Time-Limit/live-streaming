@@ -93,8 +93,7 @@ class Speaker {
   Callback callback_;
 
  public:
-  Speaker() : Speaker(nullptr) {}
-  Speaker(Callback cb)
+  Speaker(Callback cb = nullptr)
     : is_alive_(true)
     , sample_queue_(1)
     , speak_future_(std::async(std::launch::async, &Speaker::Speak, this))

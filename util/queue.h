@@ -21,6 +21,11 @@ class Queue {
     q_.push(std::forward<T>(t));
     return q_.size();
   }
+
+  size_t PutWithoutLock(const T &t) {
+    q_.push(t);
+    return q_.size();
+  }
  public:
 
   Queue(uint32_t cap = 0) : capacity_(cap) {}
@@ -71,6 +76,20 @@ class Queue {
         put_cv_.wait(g, [this]{return q_.size() < capacity_;});
       }
       PutWithoutLock(std::forward<T>(t));
+      size = q_.size();
+    }
+    get_cv_.notify_one();
+    return size;
+  }
+
+  size_t Put(const T &t) {
+    size_t size = 0;
+    {
+      std::unique_lock<std::mutex> g(m_);
+      if (capacity_ && q_.size() >= capacity_) {
+        put_cv_.wait(g, [this]{return q_.size() < capacity_;});
+      }
+      PutWithoutLock(t);
       size = q_.size();
     }
     get_cv_.notify_one();

@@ -67,13 +67,11 @@ class Input {
   void Decode();
 
  public:
-  using Frame = ::live::util::Frame;
-  using FrameReceiver = std::function<void(Frame &&)>;
-  Input(const InputVideoParam &param, FrameReceiver receiver = [](Frame &&){});
+  using AVFrameWrapper = util::AVFrameWrapper;
+  using FrameReceiver = std::function<void(AVFrameWrapper &&)>;
 
-  using Sample = ::live::util::Sample;
-  using SampleReceiver = std::function<void(Sample &&)>;
-  Input(const InputAudioParam &param, SampleReceiver receiver = [](Sample &&){});
+  Input(const InputVideoParam &param, FrameReceiver receiver = [](AVFrameWrapper &&){});
+  Input(const InputAudioParam &param, FrameReceiver receiver = [](AVFrameWrapper &&){});
 
   bool Run();
   void Kill();
@@ -84,7 +82,6 @@ class Input {
   ~Input();
  private:
   FrameReceiver frame_receiver_;
-  SampleReceiver sample_receiver_;
 };
 
 }

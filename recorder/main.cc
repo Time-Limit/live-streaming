@@ -6,8 +6,14 @@
 #include "recorder/context.h"
 
 #include <gflags/gflags.h>
+#include <csignal>
 
 using namespace live::recorder;
+
+bool is_alive = true;
+void signal_handler(int signal) {
+  is_alive = false;
+}
 
 int main(int argc, char **argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -31,7 +37,8 @@ int main(int argc, char **argv) {
   }
   try {
     Context c;
-    live::util::WaitSDLEventUntilCheckerReturnFalse([p = &c] () { return p->IsAlive(); });
+    std::signal(SIGINT, signal_handler);
+    live::util::WaitSDLEventUntilCheckerReturnFalse([p = &c] () { return is_alive && p->IsAlive(); });
   } catch (const std::string &err) {
     LOG_ERROR << err;
   }

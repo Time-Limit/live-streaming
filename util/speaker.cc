@@ -31,9 +31,8 @@ void Speaker::SDLAudioDeviceCallbackInternal(Uint8 *stream, int len) {
     if (callback_) {
       callback_(next);
     }
-    auto begin = next->data[0];
-    auto end = next->data[0] + next->nb_samples * av_get_bytes_per_sample(AVSampleFormat(next->format)) * av_get_channel_layout_nb_channels(AVSampleFormat(next->format));
-    sample_buffer_.insert(sample_buffer_.end(), begin, end);
+    size_t len = next->nb_samples * av_get_bytes_per_sample(AVSampleFormat(next->format)) * av_get_channel_layout_nb_channels(AVSampleFormat(next->channel_layout));
+    sample_buffer_.insert(sample_buffer_.end(), next->data[0], next->data[0] + len);
   }
   if (len > sample_buffer_.size()) {
     len = sample_buffer_.size();
@@ -61,6 +60,8 @@ bool Speaker::ResetAudioDevice(int channel_number, int sample_rate, AVSampleForm
     LOG_ERROR << "close audio device, id: " << audio_device_id_;
     audio_device_id_ = -1;
   }
+
+  LOG_ERROR << "sample_format is " << av_get_sample_fmt_name(sample_format);
 
   // 转换参数
   desired_audio_spec_.freq = sample_rate;

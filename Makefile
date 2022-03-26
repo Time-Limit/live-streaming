@@ -10,7 +10,7 @@ player-client:
 		-lz -lswresample -llzma -liconv -lspeex -lmp3lame -lbz2 -lSDL2 \
 		-framework AudioToolBox -framework VideoToolbox -framework CoreFoundation -framework CoreMedia -framework CoreVideo -framework CoreServices -framework Security -framework AVFoundation \
 		-framework CoreImage -framework AppKit -framework CoreAudio -framework OpenGL -framework Foundation\
-		-I. -O0
+		-I. -O3
 
 recorder-client:
 	g++ -o recorder-client \
