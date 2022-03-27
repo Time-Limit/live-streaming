@@ -11,39 +11,39 @@ extern "C" {
 namespace live {
 namespace util {
 
-bool Renderer::ResetSwsContext(int w, int h, AVPixelFormat fmt) {
-  if (sws_pixel_data_.height == h && sws_pixel_data_.width == w && sws_pixel_data_.pix_fmt == fmt) {
-    return true;
-  }
-  if (sws_context_) {
-    sws_freeContext(sws_context_);
-    sws_context_ = nullptr;
-  }
-  sws_context_ = sws_getContext(w, h, fmt, w, h, AV_PIX_FMT_YUYV422, SWS_BILINEAR, nullptr, nullptr, nullptr);
-  if (!sws_context_) {
-    LOG_ERROR << "sws_getContext failed";
-    return false;
-  }
-  if (!sws_pixel_data_.Reset(w, h, AV_PIX_FMT_YUYV422)) {
-    return false;
-  }
-  return true;
-}
-
-bool Renderer::PixelData::Reset(int w, int h, AVPixelFormat fmt) {
-  if (w == width && h == height && pix_fmt == fmt) {
-    return true;
-  }
-  this->~PixelData();
-  PixelData();
-  data_size = av_image_alloc(data, linesize, w, h, fmt, 1);
-  if (data_size < 0) {
-    LOG_ERROR << "av_image_alloc failed";
-    return false;
-  }
-  w = width, h = height, pix_fmt = fmt;
-  return true;
-}
+//bool Renderer::ResetSwsContext(int w, int h, AVPixelFormat fmt) {
+//  if (sws_pixel_data_.height == h && sws_pixel_data_.width == w && sws_pixel_data_.pix_fmt == fmt) {
+//    return true;
+//  }
+//  if (sws_context_) {
+//    sws_freeContext(sws_context_);
+//    sws_context_ = nullptr;
+//  }
+//  sws_context_ = sws_getContext(w, h, fmt, w, h, AV_PIX_FMT_YUYV422, SWS_BILINEAR, nullptr, nullptr, nullptr);
+//  if (!sws_context_) {
+//    LOG_ERROR << "sws_getContext failed";
+//    return false;
+//  }
+//  if (!sws_pixel_data_.Reset(w, h, AV_PIX_FMT_YUYV422)) {
+//    return false;
+//  }
+//  return true;
+//}
+//
+//bool Renderer::PixelData::Reset(int w, int h, AVPixelFormat fmt) {
+//  if (w == width && h == height && pix_fmt == fmt) {
+//    return true;
+//  }
+//  this->~PixelData();
+//  PixelData();
+//  data_size = av_image_alloc(data, linesize, w, h, fmt, 1);
+//  if (data_size < 0) {
+//    LOG_ERROR << "av_image_alloc failed";
+//    return false;
+//  }
+//  w = width, h = height, pix_fmt = fmt;
+//  return true;
+//}
 
 bool Renderer::ResetTexture(int height, int width, AVPixelFormat pix_fmt) {
   if (texture_
@@ -113,27 +113,7 @@ bool Renderer::ConvertToYUYV422(AVFrameWrapper &frame) {
     return true;
   }
 
-  if (!ResetSwsContext(frame->width, frame->height, AVPixelFormat(frame->format))) {
-    LOG_ERROR << "ResetSwsContext failed";
-    return false;
-  }
-
-  AVFrameWrapper new_frame(av_frame_alloc());
-  if (!new_frame.GetRawPtr()) {
-    LOG_ERROR << "alloc frame failed";
-    return false;
-  }
-  int ret = sws_scale_frame(sws_context_, new_frame.GetRawPtr(), frame.GetRawPtr());
-  if (ret < 0) {
-    LOG_ERROR << "scale failed, error: " << av_err2str(ret);
-    return false;
-  }
-
-  new_frame->pts = frame->pts;
-  new_frame->time_base = frame->time_base;
-  frame = std::move(new_frame);
-
-  return true;
+  return video_scale_helper_.Scale(frame, frame->width, frame->height, AV_PIX_FMT_YUYV422);
 }
 
 void Renderer::Render() {
@@ -223,10 +203,6 @@ int Renderer::SDLEvnetFilterInternal(SDL_Event *event) {
 Renderer::~Renderer() {
   Kill();
   SDL_DelEventWatch(&SDLEvnetFilter, reinterpret_cast<void *>(this));
-  if (sws_context_) {
-    sws_freeContext(sws_context_);
-    sws_context_ = nullptr;
-  }
 }
 
 }

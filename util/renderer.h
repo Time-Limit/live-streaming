@@ -1,9 +1,9 @@
 #pragma once
 
 #include "util/base.h"
-
 #include "util/util.h"
 #include "util/queue.h"
+#include "util/video_scale_helper.h"
 
 #include <SDL2/SDL.h>
 
@@ -11,10 +11,6 @@
 #include <thread>
 #include <future>
 #include <atomic>
-
-extern "C" {
-#include <libswscale/swscale.h>
-}
 
 namespace live {
 namespace util {
@@ -68,28 +64,7 @@ class Renderer {
   DelayTimeCalculator delay_time_calculator_;
 
  private:
-  // 转换视频格式用的数据。
-  // 因 SDL 能播放的格式有限，因此将其他 AVPixelFormat 均转换为 YUV420P，方便 SDL 播放。
-  struct PixelData {
-    static const uint8_t VIDEO_DST_SIZE = 4;
-    uint8_t *data[VIDEO_DST_SIZE] = {nullptr};
-    int linesize[VIDEO_DST_SIZE] = {0};
-    enum AVPixelFormat pix_fmt = AV_PIX_FMT_NONE;
-    int height = -1;
-    int width = -1;
-    int data_size = -1;
-
-    bool Reset(int w, int h, AVPixelFormat fmt);
-
-    ~PixelData() {
-      av_free(data[0]);
-    }
-  };
-  PixelData pixel_data_;
-
-  SwsContext *sws_context_ = nullptr;
-  PixelData sws_pixel_data_;
-  bool ResetSwsContext(int w, int h, AVPixelFormat fmt);
+  VideoScaleHelper video_scale_helper_;
   bool ConvertToYUYV422(AVFrameWrapper &frame);
 
  public:

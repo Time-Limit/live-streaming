@@ -4,7 +4,7 @@ player-client:
 	g++ -o player-client \
 		player/main.cc player/context.cc player/args.cc \
 		util/reader.cc util/decoder.cc util/speaker.cc util/renderer.cc util/env.cc\
-		util/util.cc \
+		util/util.cc util/video_scale_helper.cc \
 		-std=c++14 \
 		-lgflags -lavutil -lavcodec -lavdevice -lavformat -lavfilter -lswscale \
 		-lz -lswresample -llzma -liconv -lspeex -lmp3lame -lbz2 -lSDL2 \
@@ -16,7 +16,8 @@ recorder-client:
 	g++ -o recorder-client \
 		recorder/main.cc \
 		recorder/context.cc recorder/args.cc recorder/base.cc \
-		util/reader.cc util/decoder.cc util/speaker.cc util/renderer.cc util/env.cc util/filter.cc util/muxer.cc\
+		util/reader.cc util/decoder.cc util/speaker.cc util/renderer.cc util/env.cc util/filter.cc util/muxer.cc \
+		util/video_scale_helper.cc \
 		-std=c++14 \
 		-lgflags -lavutil -lavcodec -lavdevice -lavformat -lavfilter -lswscale \
 		-lz -lswresample -llzma -liconv -lspeex -lmp3lame -lbz2 -lSDL2 \
