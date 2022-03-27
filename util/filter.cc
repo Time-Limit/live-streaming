@@ -66,6 +66,27 @@ Filter::Filter(const std::unordered_map<std::string, std::string> &source_param,
     throw std::string("avfilter_graph_config failed, ") + av_err2str(ret) + ", desc: " + filter_description;
   }
 
+  auto sink_context = std::get<1>(sinks_.begin()->second);
+  if (sink_context->nb_inputs != 1) {
+    throw std::string("nb_inputs is not equal to 1, nb_inputs: ") + std::to_string(sink_context->nb_inputs);
+  } else if (sink_context->inputs[0] == nullptr) {
+    throw std::string("the first output of sink is nullptr");
+  } else {
+    auto input_link = sink_context->inputs[0];
+    LOG_ERROR << "input_link: " << input_link;
+    LOG_ERROR << "w: " << input_link->w;
+    LOG_ERROR << "h: " << input_link->h;
+    LOG_ERROR << "channel_layout: " << input_link->channel_layout;
+    LOG_ERROR << "sample_rate: " << input_link->sample_rate;
+    LOG_ERROR << "format: " << av_get_pix_fmt_name(AVPixelFormat(input_link->format));
+    LOG_ERROR << "time_base: " << input_link->time_base.num << "/" << input_link->time_base.den;
+
+    output_param_.width = input_link->w;
+    output_param_.height = input_link->h;
+    output_param_.pix_fmt = AVPixelFormat(input_link->format);
+    output_param_.time_base = input_link->time_base;
+  }
+
   output_frame_ = av_frame_alloc();
   if (!output_frame_.GetRawPtr()) {
     throw std::string("alloc output frame failed");

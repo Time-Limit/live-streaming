@@ -9,9 +9,6 @@ namespace live {
 namespace recorder {
 
 Context::Context() {
-  // 初始化 FFmpeg
-  avdevice_register_all();
-
   const std::string &input_video_params = FLAGS_input_video;
   const bool enable_debug_renderer = FLAGS_enable_debug_renderer;
   const bool enable_debug_speaker = FLAGS_enable_debug_speaker;
@@ -75,7 +72,7 @@ Context::Context() {
     },
     std::string("output"), std::string(),
     "[minor]scale=w=480:h=-1[scaled_minor],[scaled_minor]hflip[fliped_scaled_minor],[main][fliped_scaled_minor]overlay[output]",
-    [debug_render, enable_output_pts_info] (const util::AVFrameWrapper &wrapper) {
+    [debug_render, enable_output_pts_info, this] (const util::AVFrameWrapper &wrapper) {
       if (enable_output_pts_info) {
         LOG_ERROR << "video: " << wrapper->pts << ", time_base: " << wrapper->time_base.num << '/' << wrapper->time_base.den;
       }
@@ -83,12 +80,12 @@ Context::Context() {
         auto tmp = wrapper;
         debug_render->Submit(std::move(tmp));
       }
+      {
+        auto tmp = wrapper;
+        muxer_->Submit(std::move(tmp));
+      }
     }
   ));
-
-  for (auto &input : input_videos_) {
-    input->Run();
-  }
 
   const std::string &input_audio_params = FLAGS_input_audio;
   // 初始化输入音频参数
@@ -123,8 +120,29 @@ Context::Context() {
           auto tmp = sample;
           debug_speaker->Submit(std::move(tmp));
         }
+        {
+          auto tmp = sample;
+          muxer_->Submit(std::move(tmp));
+        }
       }
     ));
+  }
+
+  util::MuxerParam muxer_param;
+  muxer_param.audio_sample_rate = input_audios_.back()->GetAgreedUponParam().sample_rate;
+  muxer_param.audio_channel_layout = input_audios_.back()->GetAgreedUponParam().channel_layout;
+  muxer_param.audio_time_base = input_audios_.back()->GetAgreedUponParam().time_base;
+  muxer_param.audio_sample_format = input_audios_.back()->GetAgreedUponParam().sample_format;
+
+  muxer_param.video_width = filter_->GetOutputParam().width;
+  muxer_param.video_height = filter_->GetOutputParam().height;
+  muxer_param.video_pix_fmt = filter_->GetOutputParam().pix_fmt;
+  muxer_param.video_time_base = filter_->GetOutputParam().time_base;
+
+  muxer_.reset(new util::Muxer(muxer_param));
+
+  for (auto &input : input_videos_) {
+    input->Run();
   }
 
   for (auto &input : input_audios_) {

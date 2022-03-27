@@ -4,6 +4,7 @@
 #include "util/renderer.h"
 #include "util/speaker.h"
 #include "util/filter.h"
+#include "util/muxer.h"
 
 extern "C" {
 #include <libavutil/frame.h>
@@ -29,6 +30,9 @@ class Context {
   // 调试用的Renderer 和 Speaker
   std::vector<std::unique_ptr<live::util::Renderer>> debug_renderers_;
   std::vector<std::unique_ptr<live::util::Speaker>> debug_speakers_;
+
+  // Muxing
+  std::unique_ptr<util::Muxer> muxer_;
 
   // 滤镜
   std::unique_ptr<util::Filter> filter_;

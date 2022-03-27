@@ -14,10 +14,11 @@ void Speaker::Speak() {
       continue;
     }
     int channel_number = av_get_channel_layout_nb_channels(sample->channel_layout);
-    if (!ResetAudioDevice(channel_number, sample->sample_rate, AVSampleFormat(sample->format))) {
+    if (!ResetAudioDevice(channel_number, sample->sample_rate, AVSampleFormat(sample->format), sample->nb_samples)) {
       LOG_ERROR << "ResetAudioDevice failed";
       break;
     }
+    // LOG_ERROR << sample_queue_.Put(std::move(sample)) << ", " << submit_queue_.Size();
     sample_queue_.Put(std::move(sample));
   }
   is_alive_ = false;
@@ -48,10 +49,11 @@ void Speaker::SDLAudioDeviceCallbackInternal(Uint8 *stream, int len) {
   sample_buffer_.resize(copy_size);
 }
 
-bool Speaker::ResetAudioDevice(int channel_number, int sample_rate, AVSampleFormat sample_format) {
+bool Speaker::ResetAudioDevice(int channel_number, int sample_rate, AVSampleFormat sample_format, int sample_number) {
   if (audio_device_id_ != -1 && param_for_device_.channel_number == channel_number
       && param_for_device_.sample_rate == sample_rate
-      && param_for_device_.sample_format == sample_format) {
+      && param_for_device_.sample_format == sample_format
+      && param_for_device_.sample_number == sample_number) {
     return true;
   }
 
@@ -66,7 +68,10 @@ bool Speaker::ResetAudioDevice(int channel_number, int sample_rate, AVSampleForm
   // 转换参数
   desired_audio_spec_.freq = sample_rate;
   desired_audio_spec_.channels = channel_number;
-  desired_audio_spec_.samples = 1024;
+  desired_audio_spec_.samples = 1;
+  while (desired_audio_spec_.samples < sample_number) {
+    desired_audio_spec_.samples <<= 1;
+  }
 
   // 转换 FFmpeg 的 sample_format 至 SDL 的
   switch (sample_format) {
@@ -105,6 +110,7 @@ bool Speaker::ResetAudioDevice(int channel_number, int sample_rate, AVSampleForm
   param_for_device_.channel_number = channel_number;
   param_for_device_.sample_rate = sample_rate;
   param_for_device_.sample_format = sample_format;
+  param_for_device_.sample_number = sample_number;
   // 可能有些未播放的数据，清理掉吧。
   sample_buffer_.resize(0);
   sample_queue_.Clear();

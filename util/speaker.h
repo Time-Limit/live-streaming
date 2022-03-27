@@ -23,7 +23,7 @@ class Speaker {
    * @Param param, 如果 param 和 current_sample_param_ 不同则重置
    * @return true 成功，false 失败
    */
-  bool ResetAudioDevice(int channel_number, int sample_rate, AVSampleFormat sample_format);
+  bool ResetAudioDevice(int channel_number, int sample_rate, AVSampleFormat sample_format, int sample_number);
 
   /*
    * @Param userdata, 指向 Speaker 对象的指针
@@ -48,6 +48,7 @@ class Speaker {
     int channel_number;
     int sample_rate;
     AVSampleFormat sample_format;
+    int sample_number;
   } param_for_device_;
 
   // 和 current_sample_param_ 的数据一致，只是格式不同

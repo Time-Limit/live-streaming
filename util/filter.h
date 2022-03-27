@@ -26,6 +26,14 @@ namespace live {
 namespace util {
 
 class Filter {
+ public:
+  struct OutputParam {
+    int32_t width = 0;
+    int32_t height = 0;
+    AVPixelFormat pix_fmt = AV_PIX_FMT_NONE;
+    AVRational time_base = {0, 1};
+  };
+ private:
   using Source = std::tuple<const AVFilter *, AVFilterContext *>;
   using Sink = std::tuple<const AVFilter *, AVFilterContext *>;
   std::unordered_map<std::string, Source> sources_;
@@ -45,6 +53,8 @@ class Filter {
   using Callback = std::function<void(const AVFrameWrapper &frame)>;
   Callback callback_;
 
+  OutputParam output_param_;
+
  public:
   Filter(const std::unordered_map<std::string, std::string> &source_param,
       const std::string &sink_name, const std::string &sink_param,
@@ -58,6 +68,8 @@ class Filter {
   }
 
   decltype(output_queue_)& GetOutputQueue();
+
+  const OutputParam& GetOutputParam() const { return output_param_; }
 };
 
 }

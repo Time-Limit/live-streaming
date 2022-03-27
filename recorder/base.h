@@ -41,7 +41,23 @@ struct InputAudioParam {
   InputAudioParam() = default;
 };
 
+
 class Input {
+ public:
+  struct AgreedUponParam {
+    int32_t width = 0;
+    int32_t height = 0;
+    AVPixelFormat pixel_format = AV_PIX_FMT_NONE;
+
+    uint64_t channel_layout;
+    int32_t sample_rate;
+    AVSampleFormat sample_format = AV_SAMPLE_FMT_NONE;
+
+    AVRational time_base;
+  };
+ private:
+  AgreedUponParam agreed_upon_param_;
+
   AVFormatContext *format_context_ = nullptr;
   const AVInputFormat *input_ = nullptr;
   int stream_idx_ = -1;
@@ -58,7 +74,7 @@ class Input {
   bool is_alive_ = true;
   ::live::util::Decoder decoder_;
   std::future<void> decoder_future_;
-
+// 
   InputVideoParam input_video_param_;
   InputAudioParam input_audio_param_;
 
@@ -78,6 +94,8 @@ class Input {
   bool IsAlive() const { return is_alive_; }
   const AVCodecContext* GetCodecContext() const { return dec_ctx_; }
   const AVStream* GetStream() const {return stream_; }
+
+  const AgreedUponParam& GetAgreedUponParam() const { return agreed_upon_param_; }
 
   ~Input();
  private:

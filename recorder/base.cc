@@ -79,6 +79,16 @@ Input::Input(const InputVideoParam &param, FrameReceiver receiver)
   if (!InitDecodeContext(AVMEDIA_TYPE_VIDEO)) {
     throw std::string("InitDecodeContext failed");
   }
+
+  LOG_ERROR << "width: " << dec_ctx_->width;
+  LOG_ERROR << "height: " << dec_ctx_->height;
+  LOG_ERROR << "pix_fmt: " << av_get_pix_fmt_name(dec_ctx_->pix_fmt);
+  LOG_ERROR << "time_base: " << stream_->time_base.num << '/' << stream_->time_base.den;
+
+  agreed_upon_param_.width = dec_ctx_->width;
+  agreed_upon_param_.height = dec_ctx_->height;
+  agreed_upon_param_.pixel_format = dec_ctx_->pix_fmt;
+  agreed_upon_param_.time_base = stream_->time_base;
 }
 
 Input::Input(const InputAudioParam &param, FrameReceiver receiver)
@@ -100,6 +110,13 @@ Input::Input(const InputAudioParam &param, FrameReceiver receiver)
     throw std::string("InitDecodeContext failed");
   }
 
+  LOG_ERROR << "channel_layout: " << dec_ctx_->channel_layout;
+  LOG_ERROR << "pix_fmt: " << av_get_sample_fmt_name(dec_ctx_->sample_fmt);
+  LOG_ERROR << "time_base: " << stream_->time_base.num << '/' << stream_->time_base.den;
+
+  agreed_upon_param_.channel_layout = dec_ctx_->channel_layout;
+  agreed_upon_param_.sample_format = dec_ctx_->sample_fmt;
+  agreed_upon_param_.time_base = stream_->time_base;
 }
 
 void Input::Decode() {
