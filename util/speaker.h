@@ -1,13 +1,14 @@
 #pragma once
 
-#include <SDL2/SDL.h>
-
 #include "util/base.h"
-
 #include "util/util.h"
 #include "util/queue.h"
+#include "util/audio_resample_helper.h"
+
 #include <thread>
 #include <future>
+
+#include <SDL2/SDL.h>
 
 extern "C" {
 #include <libswresample/swresample.h>
@@ -64,19 +65,9 @@ class Speaker {
   util::Queue<AVFrameWrapper> submit_queue_;
   std::future<void> speak_future_;
 
-  // 用于转换格式的 SwrContext
-  SwrContext *swr_ctx_ = nullptr;
-
-  // swr_ctx 的辅助数据
-  int swr_channel_layout_;
-  int swr_sample_rate_;
-  AVSampleFormat swr_in_sample_fmt_;
-  AVSampleFormat swr_out_sample_fmt_;
-
   // 将 Planar 格式的采样转为 Packed 格式
+  AudioResampleHelper audio_resample_helper_;
   bool ConvertPlanarSampleToPacked(AVFrameWrapper &sample);
-
-  bool ResetSwresampleContext(int channel_layout, int sample_rate, AVSampleFormat in, AVSampleFormat out);
 
   /*
    * @note 会有单独的线程执行此函数。
@@ -96,7 +87,7 @@ class Speaker {
  public:
   Speaker(Callback cb = nullptr)
     : is_alive_(true)
-    , sample_queue_(1)
+    , sample_queue_(2)
     , speak_future_(std::async(std::launch::async, &Speaker::Speak, this))
     , callback_(std::move(cb)) {}
   ~Speaker();

@@ -73,13 +73,6 @@ Filter::Filter(const std::unordered_map<std::string, std::string> &source_param,
     throw std::string("the first output of sink is nullptr");
   } else {
     auto input_link = sink_context->inputs[0];
-    LOG_ERROR << "input_link: " << input_link;
-    LOG_ERROR << "w: " << input_link->w;
-    LOG_ERROR << "h: " << input_link->h;
-    LOG_ERROR << "channel_layout: " << input_link->channel_layout;
-    LOG_ERROR << "sample_rate: " << input_link->sample_rate;
-    LOG_ERROR << "format: " << av_get_pix_fmt_name(AVPixelFormat(input_link->format));
-    LOG_ERROR << "time_base: " << input_link->time_base.num << "/" << input_link->time_base.den;
 
     output_param_.width = input_link->w;
     output_param_.height = input_link->h;

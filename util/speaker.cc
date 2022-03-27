@@ -18,7 +18,6 @@ void Speaker::Speak() {
       LOG_ERROR << "ResetAudioDevice failed";
       break;
     }
-    // LOG_ERROR << sample_queue_.Put(std::move(sample)) << ", " << submit_queue_.Size();
     sample_queue_.Put(std::move(sample));
   }
   is_alive_ = false;
@@ -32,6 +31,12 @@ void Speaker::SDLAudioDeviceCallbackInternal(Uint8 *stream, int len) {
     if (callback_) {
       callback_(next);
     }
+
+    // LOG_ERROR << "pts: " << next->pts
+    //   << ", pix_fmt: " << av_get_sample_fmt_name(AVSampleFormat(next->format))
+    //   << ", time_base: " << next->time_base.num << '/' << next->time_base.den
+    //   << ", channel_layout: " << next->channel_layout;
+
     size_t len = next->nb_samples * av_get_bytes_per_sample(AVSampleFormat(next->format)) * av_get_channel_layout_nb_channels(AVSampleFormat(next->channel_layout));
     sample_buffer_.insert(sample_buffer_.end(), next->data[0], next->data[0] + len);
   }
@@ -121,45 +126,6 @@ bool Speaker::ResetAudioDevice(int channel_number, int sample_rate, AVSampleForm
   return true;
 }
 
-bool Speaker::ResetSwresampleContext(int channel_layout, int sample_rate, AVSampleFormat isf, AVSampleFormat osf) {
-  if (swr_ctx_
-      && swr_channel_layout_ == channel_layout && swr_sample_rate_ == sample_rate
-      && swr_in_sample_fmt_ == isf && swr_out_sample_fmt_ == osf) {
-    return true;
-  }
-
-  if (swr_ctx_ != nullptr) {
-    swr_free(&swr_ctx_);
-  }
-  swr_ctx_ = swr_alloc();
-  if (swr_ctx_ == nullptr) {
-    LOG_ERROR << "swr_alloc failed";
-    return false;
-  }
-
-  /* set options */
-  av_opt_set_int(swr_ctx_, "in_channel_layout",    channel_layout, 0);
-  av_opt_set_int(swr_ctx_, "in_sample_rate",       sample_rate, 0);
-  av_opt_set_sample_fmt(swr_ctx_, "in_sample_fmt", isf, 0);
-  
-  av_opt_set_int(swr_ctx_, "out_channel_layout",    channel_layout, 0);
-  av_opt_set_int(swr_ctx_, "out_sample_rate",       sample_rate, 0);
-  av_opt_set_sample_fmt(swr_ctx_, "out_sample_fmt", osf, 0);
-  
-  /* initialize the resampling context */
-  int ret = 0;
-  if ((ret = swr_init(swr_ctx_)) < 0) {
-    LOG_ERROR << "failed to initialize the resampling context, " << av_err2str(ret);
-    swr_free(&swr_ctx_);
-    return false;
-  }
-  swr_channel_layout_ = channel_layout;
-  swr_sample_rate_  = sample_rate;
-  swr_in_sample_fmt_ = isf;
-  swr_out_sample_fmt_ = osf;
-  return true;
-}
-
 bool Speaker::ConvertPlanarSampleToPacked(AVFrameWrapper &sample) {
   switch (sample->format) {
     case AV_SAMPLE_FMT_U8:
@@ -204,32 +170,7 @@ bool Speaker::ConvertPlanarSampleToPacked(AVFrameWrapper &sample) {
 
   auto channel_layout = sample->channel_layout;
   auto sample_rate = sample->sample_rate;
-  if (!ResetSwresampleContext(channel_layout, sample_rate, in_sample_format, out_sample_format)) {
-    LOG_ERROR << "reset swr_ctx_ failed";
-    return false;
-  }
-
-  AVFrameWrapper new_sample(av_frame_alloc());
-  if (!new_sample.GetRawPtr()) {
-    LOG_ERROR << "alloc frame failed";
-    return false;
-  }
-
-  new_sample->channel_layout = channel_layout;
-  new_sample->sample_rate = sample_rate;
-  new_sample->format = out_sample_format;
-  new_sample->pts = sample->pts;
-  new_sample->time_base = sample->time_base;
-
-  int ret = swr_convert_frame(swr_ctx_, new_sample.GetRawPtr(), sample.GetRawPtr());
-  if (ret) {
-    LOG_ERROR << "swr_convert_frame failed, err: " << av_err2str(ret);
-    return false;
-  }
-
-  sample = std::move(new_sample);
-
-  return true;
+  return audio_resample_helper_.Resample(sample, sample_rate, channel_layout, out_sample_format);
 }
 
 void Speaker::Submit(AVFrameWrapper &&sample) {

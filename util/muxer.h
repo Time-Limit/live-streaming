@@ -2,6 +2,8 @@
 
 #include "util/base.h"
 #include "util/queue.h"
+#include "util/video_scale_helper.h"
+#include "util/audio_resample_helper.h"
 
 #include <string>
 #include <future>
@@ -26,7 +28,6 @@ namespace util {
 typedef struct OutputStream {
   AVStream *st = nullptr;
   AVCodecContext *enc = nullptr;
-  AVFrame *frame = nullptr;
   AVPacket *packet = nullptr;
 } OutputStream;
 
@@ -50,8 +51,11 @@ class Muxer {
   const AVCodec *audio_codec_ = nullptr;
   const AVCodec *video_codec_ = nullptr;
   OutputStream video_st_ = { 0 }, audio_st_ = { 0 };
-  const std::string filename = "/Users/zhumingxiao/stream/live-streaming/util/test.flv";
+  const std::string filename = "./test.flv";
   MuxerParam muxer_param_;
+
+  VideoScaleHelper video_scale_helper_;
+  AudioResampleHelper audio_resample_helper_;
 
   Queue<AVFrameWrapper> queue_;
   std::future<void> muxing_future_;
