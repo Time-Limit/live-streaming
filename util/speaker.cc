@@ -73,9 +73,11 @@ bool Speaker::ResetAudioDevice(int channel_number, int sample_rate, AVSampleForm
   // 转换参数
   desired_audio_spec_.freq = sample_rate;
   desired_audio_spec_.channels = channel_number;
-  desired_audio_spec_.samples = 1;
+  desired_audio_spec_.samples = sample_number;
   while (desired_audio_spec_.samples < sample_number) {
-    desired_audio_spec_.samples <<= 1;
+  }
+  if (desired_audio_spec_.samples >= sample_number) {
+    desired_audio_spec_.samples >>= 1;
   }
 
   // 转换 FFmpeg 的 sample_format 至 SDL 的
