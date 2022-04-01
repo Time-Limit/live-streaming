@@ -142,6 +142,7 @@ bool Filter::Submit(const std::string &input, AVFrameWrapper &&frame) {
     return false;
   }
   if (input_queue_.Size() > 5) {
+    LOG_ERROR << "drop frame, input is " << input;
     return false;
   }
   std::pair<std::string, AVFrameWrapper> res = std::make_pair(input, std::move(frame));

@@ -48,8 +48,6 @@ struct MuxerParam {
 class Muxer {
   AVFormatContext *format_context_ = nullptr;
   const AVOutputFormat *output_format_ = nullptr;
-  const AVCodec *audio_codec_ = nullptr;
-  const AVCodec *video_codec_ = nullptr;
   OutputStream video_st_ = { 0 }, audio_st_ = { 0 };
   const std::string filename = "./test.flv";
   MuxerParam muxer_param_;
@@ -69,7 +67,8 @@ class Muxer {
     if (!is_alive_) {
       return false;
     }
-    if (queue_.Size() > 16) {
+    if (queue_.Size() > 16 && wrapper->width) {
+      LOG_ERROR << "drop frame, type: " << (wrapper->channel_layout ? 'A' : 'V');
       return false;
     }
     queue_.Put(std::move(wrapper));

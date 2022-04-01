@@ -19,8 +19,8 @@ recorder-client:
 		util/reader.cc util/decoder.cc util/speaker.cc util/renderer.cc util/env.cc util/filter.cc util/muxer.cc \
 		util/video_scale_helper.cc  util/audio_resample_helper.cc \
 		-std=c++14 \
-		-lgflags -lavutil -lavcodec -lavdevice -lavformat -lavfilter -lswscale \
-		-lz -lswresample -llzma -liconv -lspeex -lmp3lame -lbz2 -lSDL2 \
+		-lgflags -lavutil -lavcodec -lavdevice -lavformat -lavfilter -lswscale -lpostproc \
+		-lz -lswresample -llzma -liconv -lspeex -lmp3lame -lbz2 -lSDL2 -lx264\
 		-framework AudioToolBox -framework VideoToolbox -framework CoreFoundation -framework CoreMedia -framework CoreVideo -framework CoreServices -framework Security -framework AVFoundation \
 		-framework CoreImage -framework AppKit -framework CoreAudio -framework OpenGL -framework Foundation\
 		-I. -O3

@@ -1,8 +1,12 @@
 #include "util/muxer.h"
 #include "util/util.h"
+#include <gflags/gflags.h>
 
 namespace live {
 namespace util {
+
+DEFINE_int32(muxer_audio_bit_rate, 0, "");
+DEFINE_int32(muxer_video_bit_rate, 0, "");
 
 static void log_packet(const AVFormatContext *fmt_ctx, const AVPacket *pkt) {
   AVRational *time_base = &fmt_ctx->streams[pkt->stream_index]->time_base;
@@ -14,17 +18,32 @@ static void log_packet(const AVFormatContext *fmt_ctx, const AVPacket *pkt) {
       pkt->stream_index);
 }
 
-static bool InitStream(OutputStream *ost, AVFormatContext *oc, const AVCodec **codec,
-      enum AVCodecID codec_id, MuxerParam *mp) {
-  
-  AVCodecContext *c = nullptr;
-  int i = 0;
+static bool InitStream(OutputStream *ost, AVFormatContext *oc, enum AVMediaType mtype, MuxerParam *mp) {
 
-  *codec = avcodec_find_encoder(codec_id);
-  if (!(*codec)) {
-    LOG_ERROR << "not found encoder for " << avcodec_get_name(codec_id);
+  const char *codec_name = nullptr;
+
+  if (mtype == AVMEDIA_TYPE_AUDIO) {
+    codec_name = "aac";
+  } else if (mtype == AVMEDIA_TYPE_VIDEO) {
+    // codec_name = "h264_videotoolbox";
+    codec_name = "libx264";
+  } else {
+    LOG_ERROR << "not handler this AVMediaType " << mtype;
     return false;
   }
+
+  const AVCodec *codec = avcodec_find_encoder_by_name(codec_name);
+
+  if (codec == nullptr) {
+    LOG_ERROR << "not found AVCodec by name " << codec_name;
+    return false;
+  }
+  LOG_ERROR << "codec name is " << codec->long_name << "(" << codec->name << ")";
+  
+  AVCodecID codec_id = codec->id;
+
+  AVCodecContext *c = nullptr;
+  int i = 0;
 
   if(!(ost->packet = av_packet_alloc())) {
     LOG_ERROR << "alloc AVPacket failed";
@@ -37,22 +56,23 @@ static bool InitStream(OutputStream *ost, AVFormatContext *oc, const AVCodec **c
   }
 
   ost->st->id = oc->nb_streams-1;
+  ost->st->codecpar->codec_id = codec_id;
 
-  if (!(c = avcodec_alloc_context3(*codec))) {
+  if (!(c = avcodec_alloc_context3(codec))) {
     LOG_ERROR << "alooc AVCodecContext failed";
     return false;
   }
 
   ost->enc = c;
-  switch ((*codec)->type) {
+  switch (mtype) {
     case AVMEDIA_TYPE_AUDIO: {
       c->codec_id = codec_id;
       c->sample_fmt = mp->audio_sample_format;
-      if ((*codec)->sample_fmts) {
-        c->sample_fmt = (*codec)->sample_fmts[0];
-        for (i = 0; (*codec)->sample_fmts[i] != AV_SAMPLE_FMT_NONE; i++) {
-          if ((*codec)->sample_fmts[i] == mp->audio_sample_format) {
-            c->sample_fmt = (*codec)->sample_fmts[i];
+      if (codec->sample_fmts) {
+        c->sample_fmt = codec->sample_fmts[0];
+        for (i = 0; codec->sample_fmts[i] != AV_SAMPLE_FMT_NONE; i++) {
+          if (codec->sample_fmts[i] == mp->audio_sample_format) {
+            c->sample_fmt = codec->sample_fmts[i];
             break;
           }
         }
@@ -64,10 +84,10 @@ static bool InitStream(OutputStream *ost, AVFormatContext *oc, const AVCodec **c
       }
 
       c->sample_rate = mp->audio_sample_rate;
-      if ((*codec)->supported_samplerates) {
-        c->sample_rate = (*codec)->supported_samplerates[0];
-        for (i = 0; (*codec)->supported_samplerates[i]; i++) {
-          if ((*codec)->supported_samplerates[i] == mp->audio_sample_rate) {
+      if (codec->supported_samplerates) {
+        c->sample_rate = codec->supported_samplerates[0];
+        for (i = 0; codec->supported_samplerates[i]; i++) {
+          if (codec->supported_samplerates[i] == mp->audio_sample_rate) {
             c->sample_rate = mp->audio_sample_rate;
             break;
           }
@@ -79,10 +99,10 @@ static bool InitStream(OutputStream *ost, AVFormatContext *oc, const AVCodec **c
       }
 
       c->channel_layout = mp->audio_channel_layout;
-      if ((*codec)->channel_layouts) {
-        c->channel_layout = (*codec)->channel_layouts[0];
-        for (i = 0; (*codec)->channel_layouts[i]; i++) {
-          if ((*codec)->channel_layouts[i] == mp->audio_channel_layout) {
+      if (codec->channel_layouts) {
+        c->channel_layout = codec->channel_layouts[0];
+        for (i = 0; codec->channel_layouts[i]; i++) {
+          if (codec->channel_layouts[i] == mp->audio_channel_layout) {
             c->channel_layout = mp->audio_channel_layout;
             break;
           }
@@ -95,8 +115,9 @@ static bool InitStream(OutputStream *ost, AVFormatContext *oc, const AVCodec **c
     
       c->channels = av_get_channel_layout_nb_channels(c->channel_layout);
 
-      c->bit_rate =
-        av_get_bytes_per_sample(mp->audio_sample_format) * av_get_channel_layout_nb_channels(AVSampleFormat(mp->audio_channel_layout)) * mp->audio_sample_rate;
+      // c->profile = FF_PROFILE_AAC_HE_V2;
+
+      // c->bit_rate = FLAGS_muxer_audio_bit_rate;
 
       LOG_ERROR << "set bit rate to " << c->bit_rate;
 
@@ -104,17 +125,23 @@ static bool InitStream(OutputStream *ost, AVFormatContext *oc, const AVCodec **c
       break;
     }
     case AVMEDIA_TYPE_VIDEO: {
-      c->codec_id = codec_id;
       c->width = mp->video_width;
       c->height = mp->video_height;
       ost->st->time_base = c->time_base = mp->video_time_base;
+      c->framerate = AVRational{mp->video_time_base.den, mp->video_time_base.num};
+      c->gop_size = 12;
       c->pix_fmt = mp->video_pix_fmt;
-      if ((*codec)->pix_fmts) {
-        c->pix_fmt = (*codec)->pix_fmts[0];
-        for (int i = 0; (*codec)->pix_fmts[i] != AV_PIX_FMT_NONE; i++) {
-          if ((*codec)->pix_fmts[i] == mp->video_pix_fmt) {
+      // c->bit_rate = FLAGS_muxer_video_bit_rate;
+      c->flags |= AV_CODEC_FLAG2_LOCAL_HEADER;
+      if (codec->pix_fmts) {
+        c->pix_fmt = codec->pix_fmts[0];
+        for (int i = 0; codec->pix_fmts[i] != AV_PIX_FMT_NONE; i++) {
+          if (codec->pix_fmts[i] == mp->video_pix_fmt) {
             c->pix_fmt = mp->video_pix_fmt;
             break;
+          }
+          if (codec->pix_fmts[i] == AV_PIX_FMT_YUV420P) {
+            c->pix_fmt = AV_PIX_FMT_YUV420P;
           }
         }
         LOG_ERROR << "change pix fmt from " << av_get_pix_fmt_name(mp->video_pix_fmt)
@@ -122,19 +149,43 @@ static bool InitStream(OutputStream *ost, AVFormatContext *oc, const AVCodec **c
         mp->video_pix_fmt = c->pix_fmt;
       }
 
-      c->gop_size = 16;
-
-      c->bit_rate = mp->video_height * mp->video_width * 3 * 60;
+      if (codec->name == std::string("libx264")) {
+        int ret = 0;
+        //ret = av_opt_set(c->priv_data, "crf", "1", 0);
+        //if (ret) {
+        //  LOG_ERROR << "set crf to 1 failed, error: " << av_err2str(ret);
+        //}
+        //// set it to high444
+        //ret = av_opt_set(c->priv_data, "profile", "high444", 0);
+        //if (ret) {
+        //  LOG_ERROR << "set profile to high444 failed, error: " << av_err2str(ret);
+        //}
+        // set it to placebo
+        //ret = av_opt_set(c->priv_data, "preset", "placebo", 0);
+        //if (ret) {
+        //  LOG_ERROR << "set presest to placebo failed, error: " << av_err2str(ret);
+        //}
+        // set it to film
+        ret = av_opt_set(c->priv_data, "tune", "film", 0);
+        if (ret) {
+          LOG_ERROR << "set tune to file failed, error: " << av_err2str(ret);
+        }
+      }
 
       break;
     }
     default: {
-      LOG_ERROR << "not handler this codec type " << (*codec)->type;
+      LOG_ERROR << "not handler this codec type " << codec->type;
       return false;
     }
   }
 
-  int ret = avcodec_open2(c, *codec, nullptr);
+  // TODO 添加了该标记后，H264 会出现 non-existing PPS 的错误
+  if (mtype == AVMEDIA_TYPE_AUDIO && (oc->oformat->flags & AVFMT_GLOBALHEADER)) {
+    c->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+  }
+
+  int ret = avcodec_open2(c, codec, nullptr);
   if (ret < 0) {
     LOG_ERROR << "avcodec_open2 failed, error: " << av_err2str(ret);
     return false;
@@ -143,10 +194,7 @@ static bool InitStream(OutputStream *ost, AVFormatContext *oc, const AVCodec **c
   ret = avcodec_parameters_from_context(ost->st->codecpar, c);
   if (ret < 0) {
     LOG_ERROR << "avcodec_parameters_from_context failed, error: " << av_err2str(ret);
-  }
-
-  if (oc->oformat->flags & AVFMT_GLOBALHEADER) {
-    c->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+    return false;
   }
 
   return true;
@@ -164,14 +212,14 @@ Muxer::Muxer(const MuxerParam &mp) {
   if (output_format_->video_codec == AV_CODEC_ID_NONE) {
     throw std::string("not found video codec");
   }
-  if (!InitStream(&video_st_, format_context_, &video_codec_, output_format_->video_codec, &muxer_param_)) {
+  if (!InitStream(&video_st_, format_context_, AVMEDIA_TYPE_VIDEO, &muxer_param_)) {
     throw std::string ("init video stream failed");
   }
 
   if (output_format_->audio_codec == AV_CODEC_ID_NONE) {
     throw std::string("not found audio codec");
   }
-  if (!InitStream(&audio_st_, format_context_, &audio_codec_, output_format_->audio_codec, &muxer_param_)) {
+  if (!InitStream(&audio_st_, format_context_, AVMEDIA_TYPE_AUDIO, &muxer_param_)) {
     throw std::string("init audio stream failed");
   }
 
@@ -244,6 +292,7 @@ Muxer::Muxer(const MuxerParam &mp) {
          if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
            break;
          else if (ret < 0) {
+           av_packet_unref(os->packet);
            LOG_ERROR << "receive packet failed, error: " << av_err2str(ret);
            return;
          }
@@ -253,7 +302,7 @@ Muxer::Muxer(const MuxerParam &mp) {
          os->packet->stream_index = os->st->index;
 
          /* Write the compressed frame to the media file. */
-         // log_packet(format_context_, os->packet);
+         //log_packet(format_context_, os->packet);
          ret = av_interleaved_write_frame(format_context_, os->packet);
          /* pkt is now blank (av_interleaved_write_frame() takes ownership of
           * its contents and resets pkt), so that no unreferencing is necessary.
