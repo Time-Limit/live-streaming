@@ -87,8 +87,9 @@ class Context {
     int64_t corresponding_alive_micro_seconds_ =
         0;  // start 对应的 alive_micro_seconds_ 的值, 用于音画同步
   };
-  std::atomic<TimeInterval> playing_time_interval_;  // 当前正在播放的音频采样数据的
-                                                     // pts 区间
+  std::atomic<TimeInterval>
+      playing_time_interval_;  // 当前正在播放的音频采样数据的
+                               // pts 区间
 
   int64_t started_playing_micro_second_ =
       -1;  // 开始播放时的 alive_micro_seconds_ 的值
