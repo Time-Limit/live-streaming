@@ -1,13 +1,13 @@
 #pragma once
 
-#include "util/util.h"
 #include "util/base.h"
 #include "util/decoder.h"
+#include "util/util.h"
 
-#include <string>
 #include <stdio.h>
-#include <thread>
 #include <future>
+#include <string>
+#include <thread>
 
 extern "C" {
 #include <libavutil/frame.h>
@@ -17,8 +17,8 @@ extern "C" {
 #include <libavutil/timestamp.h>
 
 #include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
 #include <libavdevice/avdevice.h>
+#include <libavformat/avformat.h>
 }
 
 namespace live {
@@ -35,12 +35,11 @@ struct InputVideoParam {
 
 struct InputAudioParam {
   std::string url;
-  explicit InputAudioParam(const std::string &param) {
+  explicit InputAudioParam(const std::string& param) {
     url = param;
   }
   InputAudioParam() = default;
 };
-
 
 class Input {
  public:
@@ -55,14 +54,15 @@ class Input {
 
     AVRational time_base;
   };
+
  private:
   AgreedUponParam agreed_upon_param_;
 
-  AVFormatContext *format_context_ = nullptr;
-  const AVInputFormat *input_ = nullptr;
+  AVFormatContext* format_context_ = nullptr;
+  const AVInputFormat* input_ = nullptr;
   int stream_idx_ = -1;
-  AVStream *stream_ = nullptr;
-  AVCodecContext *dec_ctx_ = nullptr;
+  AVStream* stream_ = nullptr;
+  AVCodecContext* dec_ctx_ = nullptr;
 
   enum InputType {
     UNDEF = 0,
@@ -74,7 +74,7 @@ class Input {
   bool is_alive_ = true;
   ::live::util::Decoder decoder_;
   std::future<void> decoder_future_;
-// 
+  //
   InputVideoParam input_video_param_;
   InputAudioParam input_audio_param_;
 
@@ -84,23 +84,36 @@ class Input {
 
  public:
   using AVFrameWrapper = util::AVFrameWrapper;
-  using FrameReceiver = std::function<void(AVFrameWrapper &&)>;
+  using FrameReceiver = std::function<void(AVFrameWrapper&&)>;
 
-  Input(const InputVideoParam &param, FrameReceiver receiver = [](AVFrameWrapper &&){});
-  Input(const InputAudioParam &param, FrameReceiver receiver = [](AVFrameWrapper &&){});
+  Input(
+      const InputVideoParam& param,
+      FrameReceiver receiver = [](AVFrameWrapper&&) {});
+  Input(
+      const InputAudioParam& param,
+      FrameReceiver receiver = [](AVFrameWrapper&&) {});
 
   bool Run();
   void Kill();
-  bool IsAlive() const { return is_alive_; }
-  const AVCodecContext* GetCodecContext() const { return dec_ctx_; }
-  const AVStream* GetStream() const {return stream_; }
+  bool IsAlive() const {
+    return is_alive_;
+  }
+  const AVCodecContext* GetCodecContext() const {
+    return dec_ctx_;
+  }
+  const AVStream* GetStream() const {
+    return stream_;
+  }
 
-  const AgreedUponParam& GetAgreedUponParam() const { return agreed_upon_param_; }
+  const AgreedUponParam& GetAgreedUponParam() const {
+    return agreed_upon_param_;
+  }
 
   ~Input();
+
  private:
   FrameReceiver frame_receiver_;
 };
 
-}
-}
+}  // namespace recorder
+}  // namespace live

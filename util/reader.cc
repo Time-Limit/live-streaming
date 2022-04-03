@@ -2,28 +2,32 @@
 #include "util/util.h"
 
 extern "C" {
-#include <libavutil/error.h>
 #include <libavformat/avio.h>
+#include <libavutil/error.h>
 }
 
 namespace live {
 namespace util {
 
-LocalFileReader::LocalFileReader(const std::string &p)
-    : Reader(), path_(p), file_(path_, std::ios::in|std::ios::binary), file_size_(-1) {
+LocalFileReader::LocalFileReader(const std::string& p)
+    : Reader()
+    , path_(p)
+    , file_(path_, std::ios::in | std::ios::binary)
+    , file_size_(-1) {
   if (!file_) {
-    throw std::string("open file failed, path: ") + path_ + std::string(", reason: ") + strerror(errno);
+    throw std::string("open file failed, path: ") + path_ +
+        std::string(", reason: ") + strerror(errno);
   }
   file_.seekg(0, file_.end);
   file_size_ = file_.tellg();
   file_.seekg(0, file_.beg);
 }
 
-int LocalFileReader::Read(uint8_t *buf, int size) {
+int LocalFileReader::Read(uint8_t* buf, int size) {
   if (size <= 0) {
     return 0;
   }
-  file_.read(reinterpret_cast<char *>(buf), size);
+  file_.read(reinterpret_cast<char*>(buf), size);
   int ret = file_.gcount();
   if (ret == 0) {
     return AVERROR_EOF;
@@ -58,5 +62,5 @@ int64_t LocalFileReader::Seek(int64_t offset, int whence) {
   return -1;
 }
 
-}
-}
+}  // namespace util
+}  // namespace live

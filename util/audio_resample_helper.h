@@ -5,17 +5,16 @@
 #include <memory>
 
 extern "C" {
-#include <libswresample/swresample.h>
 #include <libavutil/opt.h>
+#include <libswresample/swresample.h>
 }
 
 namespace live {
 namespace util {
 
 class AudioResampleHelper {
-
   struct SwrContextDeleter {
-    void operator()(SwrContext *ptr) {
+    void operator()(SwrContext* ptr) {
       swr_free(&ptr);
     }
   };
@@ -31,11 +30,13 @@ class AudioResampleHelper {
   AVSampleFormat swr_in_sample_fmt_;
   AVSampleFormat swr_out_sample_fmt_;
 
-  bool Reset(uint64_t ic, int is, AVSampleFormat isf, uint64_t oc, int os, AVSampleFormat of);
+  bool Reset(uint64_t ic, int is, AVSampleFormat isf, uint64_t oc, int os,
+             AVSampleFormat of);
 
  public:
-  bool Resample(AVFrameWrapper &wrapper, int out_rate_, uint64_t out_channel_layout, AVSampleFormat out_fmt);
+  bool Resample(AVFrameWrapper& wrapper, int out_rate_,
+                uint64_t out_channel_layout, AVSampleFormat out_fmt);
 };
 
-}
-}
+}  // namespace util
+}  // namespace live

@@ -1,16 +1,16 @@
 #pragma once
 
 #include "util/base.h"
-#include "util/util.h"
 #include "util/queue.h"
+#include "util/util.h"
 #include "util/video_scale_helper.h"
 
 #include <SDL2/SDL.h>
 
-#include <chrono>
-#include <thread>
-#include <future>
 #include <atomic>
+#include <chrono>
+#include <future>
+#include <thread>
 
 namespace live {
 namespace util {
@@ -18,14 +18,14 @@ namespace util {
 class Renderer {
   std::atomic<bool> is_alive_;
 
-  SDL_Window *window_ = nullptr;
+  SDL_Window* window_ = nullptr;
   SDL_Texture* texture_ = nullptr;
   SDL_Renderer* renderer_ = nullptr;
 
-  static int SDLEvnetFilter(void *userdata, SDL_Event *event) {
-    return reinterpret_cast<Renderer *>(userdata)->SDLEvnetFilterInternal(event);
+  static int SDLEvnetFilter(void* userdata, SDL_Event* event) {
+    return reinterpret_cast<Renderer*>(userdata)->SDLEvnetFilterInternal(event);
   }
-  int SDLEvnetFilterInternal(SDL_Event *event);
+  int SDLEvnetFilterInternal(SDL_Event* event);
 
   struct {
     int height;
@@ -48,9 +48,10 @@ class Renderer {
   bool ResetTexture(int height, int width, AVPixelFormat pix_fmt);
 
   /*
-   * @note 根据 current_frame_param_ 和 window size 计算合适的宽高和位置，实现等比例缩放和画面居中
+   * @note 根据 current_frame_param_ 和 window size
+   * 计算合适的宽高和位置，实现等比例缩放和画面居中
    */
-  void UpdateRect(SDL_Rect &texture_rect, SDL_Rect &render_rect);
+  void UpdateRect(SDL_Rect& texture_rect, SDL_Rect& render_rect);
 
  public:
   // 目前音画同步的机制是视频向音频同步，因此在音频播放速率不稳定时,
@@ -58,14 +59,14 @@ class Renderer {
   // 该逻辑目前需由外部指定，未提供默认的实现方式。
   // 入参：待播放帧的 pts，单位微秒
   // 返回值：延迟时长，单位毫秒
-  using DelayTimeCalculator = std::function<int64_t(const AVFrameWrapper &)>;
+  using DelayTimeCalculator = std::function<int64_t(const AVFrameWrapper&)>;
 
  private:
   DelayTimeCalculator delay_time_calculator_;
 
  private:
   VideoScaleHelper video_scale_helper_;
-  bool ConvertToYUYV422(AVFrameWrapper &frame);
+  bool ConvertToYUYV422(AVFrameWrapper& frame);
 
  public:
   /*
@@ -75,14 +76,16 @@ class Renderer {
   Renderer(DelayTimeCalculator calculator);
   ~Renderer();
 
-  Renderer(const Renderer &) = delete;
-  Renderer& operator= (const Renderer &) = delete;
+  Renderer(const Renderer&) = delete;
+  Renderer& operator=(const Renderer&) = delete;
 
   /*
-   * @Param frame, 将 frame 提交至待播放队列，Render 函数会依次渲染队列中的数据。
+   * @Param frame, 将 frame 提交至待播放队列，Render
+   * 函数会依次渲染队列中的数据。
    */
-  void Submit(AVFrameWrapper &&frame) {
-    while (is_alive_ && !submit_queue_.TimedPut(std::move(frame), std::chrono::milliseconds(100))) {
+  void Submit(AVFrameWrapper&& frame) {
+    while (is_alive_ && !submit_queue_.TimedPut(
+                            std::move(frame), std::chrono::milliseconds(100))) {
     }
   }
 
@@ -113,9 +116,10 @@ class Renderer {
     }
   }
 
-  bool IsAlive() { return is_alive_; }
+  bool IsAlive() {
+    return is_alive_;
+  }
 };
 
-}
-}
-
+}  // namespace util
+}  // namespace live

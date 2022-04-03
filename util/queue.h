@@ -1,15 +1,15 @@
 #pragma once
 
-#include <queue>
-#include <mutex>
-#include <vector>
-#include <condition_variable>
 #include <chrono>
+#include <condition_variable>
+#include <mutex>
+#include <queue>
+#include <vector>
 
 namespace live {
 namespace util {
 
-template<typename T>
+template <typename T>
 class Queue {
   std::queue<T> q_;
   uint32_t capacity_ = 0;
@@ -17,17 +17,17 @@ class Queue {
   mutable std::condition_variable get_cv_;
   mutable std::condition_variable put_cv_;
 
-  size_t PutWithoutLock(T &&t) {
+  size_t PutWithoutLock(T&& t) {
     q_.push(std::forward<T>(t));
     return q_.size();
   }
 
-  size_t PutWithoutLock(const T &t) {
+  size_t PutWithoutLock(const T& t) {
     q_.push(t);
     return q_.size();
   }
- public:
 
+ public:
   Queue(uint32_t cap = 0) : capacity_(cap) {}
   Queue(Queue&&) = default;
 
@@ -36,12 +36,12 @@ class Queue {
     return q_.size();
   }
 
-  size_t Put(const std::vector<T> &ts) {
+  size_t Put(const std::vector<T>& ts) {
     size_t size = 0;
     {
       std::unique_lock<std::mutex> g(m_);
       if (capacity_ && ts.size() + q_.size() > capacity_) {
-        put_cv_.wait(g, [this]{return q_.size() < capacity_;});
+        put_cv_.wait(g, [this] { return q_.size() < capacity_; });
       }
       for (auto t : ts) {
         PutWithoutLock(std::move(t));
@@ -52,14 +52,14 @@ class Queue {
     return size;
   }
 
-  size_t Put(std::vector<T> &&ts) {
+  size_t Put(std::vector<T>&& ts) {
     size_t size = 0;
     {
       std::unique_lock<std::mutex> g(m_);
       if (capacity_ && ts.size() + q_.size() > capacity_) {
-        put_cv_.wait(g, [this]{return q_.size() < capacity_;});
+        put_cv_.wait(g, [this] { return q_.size() < capacity_; });
       }
-      for (auto &t : ts) {
+      for (auto& t : ts) {
         PutWithoutLock(std::move(t));
       }
       size = q_.size();
@@ -68,12 +68,12 @@ class Queue {
     return size;
   }
 
-  size_t Put(T &&t) {
+  size_t Put(T&& t) {
     size_t size = 0;
     {
       std::unique_lock<std::mutex> g(m_);
       if (capacity_ && q_.size() >= capacity_) {
-        put_cv_.wait(g, [this]{return q_.size() < capacity_;});
+        put_cv_.wait(g, [this] { return q_.size() < capacity_; });
       }
       PutWithoutLock(std::forward<T>(t));
       size = q_.size();
@@ -82,12 +82,12 @@ class Queue {
     return size;
   }
 
-  size_t Put(const T &t) {
+  size_t Put(const T& t) {
     size_t size = 0;
     {
       std::unique_lock<std::mutex> g(m_);
       if (capacity_ && q_.size() >= capacity_) {
-        put_cv_.wait(g, [this]{return q_.size() < capacity_;});
+        put_cv_.wait(g, [this] { return q_.size() < capacity_; });
       }
       PutWithoutLock(t);
       size = q_.size();
@@ -96,11 +96,11 @@ class Queue {
     return size;
   }
 
-  bool TimedPut(T &&t, const std::chrono::milliseconds &timeout) {
+  bool TimedPut(T&& t, const std::chrono::milliseconds& timeout) {
     {
       std::unique_lock<std::mutex> g(m_);
       if (capacity_ && q_.size() >= capacity_) {
-        put_cv_.wait_for(g, timeout, [this]{return q_.size() < capacity_;});
+        put_cv_.wait_for(g, timeout, [this] { return q_.size() < capacity_; });
       }
       if (capacity_ && q_.size() >= capacity_) {
         return false;
@@ -111,7 +111,7 @@ class Queue {
     return true;
   }
 
-  bool TryToGet(T *t) {
+  bool TryToGet(T* t) {
     bool need_notify_get = false;
     bool need_notify_put = false;
     {
@@ -137,45 +137,61 @@ class Queue {
     return true;
   }
 
-  bool TimedGet(T *t, const std::chrono::milliseconds &timeout) {
+  bool TimedGet(T* t, const std::chrono::milliseconds& timeout) {
     bool need_notify_get = false;
     bool need_notify_put = false;
     {
       std::unique_lock<std::mutex> g(m_);
       if (q_.empty()) {
-        get_cv_.wait_for(g, timeout, [this]{return q_.size();});
+        get_cv_.wait_for(g, timeout, [this] { return q_.size(); });
       }
       if (q_.empty()) {
         return false;
       }
       *t = std::move(q_.front());
       q_.pop();
-      if (q_.size()) { need_notify_get = true; }
-      if (q_.size() < capacity_) { need_notify_put = true; }
+      if (q_.size()) {
+        need_notify_get = true;
+      }
+      if (q_.size() < capacity_) {
+        need_notify_put = true;
+      }
     }
-    if (need_notify_get) { get_cv_.notify_one(); }
-    if (need_notify_put) { put_cv_.notify_one(); }
+    if (need_notify_get) {
+      get_cv_.notify_one();
+    }
+    if (need_notify_put) {
+      put_cv_.notify_one();
+    }
     return true;
   }
 
-  bool Get(T *t) {
+  bool Get(T* t) {
     bool need_notify_get = false;
     bool need_notify_put = false;
     {
       std::unique_lock<std::mutex> g(m_);
       if (q_.empty()) {
-        get_cv_.wait(g, [this]{return q_.size();});
+        get_cv_.wait(g, [this] { return q_.size(); });
       }
       if (q_.empty()) {
         return false;
       }
       *t = std::move(q_.front());
       q_.pop();
-      if (q_.size()) { need_notify_get = true; }
-      if (q_.size() < capacity_) { need_notify_put = true; }
+      if (q_.size()) {
+        need_notify_get = true;
+      }
+      if (q_.size() < capacity_) {
+        need_notify_put = true;
+      }
     }
-    if (need_notify_get) { get_cv_.notify_one(); }
-    if (need_notify_put) { put_cv_.notify_one(); }
+    if (need_notify_get) {
+      get_cv_.notify_one();
+    }
+    if (need_notify_put) {
+      put_cv_.notify_one();
+    }
     return true;
   }
 
@@ -185,5 +201,5 @@ class Queue {
   }
 };
 
-}
-}
+}  // namespace util
+}  // namespace live

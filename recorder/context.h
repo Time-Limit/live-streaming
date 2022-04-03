@@ -1,10 +1,10 @@
 #pragma once
 
 #include "recorder/base.h"
-#include "util/renderer.h"
-#include "util/speaker.h"
 #include "util/filter.h"
 #include "util/muxer.h"
+#include "util/renderer.h"
+#include "util/speaker.h"
 
 extern "C" {
 #include <libavutil/frame.h>
@@ -14,14 +14,14 @@ extern "C" {
 #include <libavutil/timestamp.h>
 
 #include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
 #include <libavdevice/avdevice.h>
+#include <libavformat/avformat.h>
 }
 
 #include <SDL2/SDL.h>
 
-#include <vector>
 #include <memory>
+#include <vector>
 
 namespace live {
 namespace recorder {
@@ -40,11 +40,10 @@ class Context {
   // 输入视频相关变量
   std::vector<InputVideoParam> input_video_params_;
   std::vector<std::unique_ptr<Input>> input_videos_;
-  
+
   // 输入音频相关变量
   std::vector<InputAudioParam> input_audio_params_;
   std::vector<std::unique_ptr<Input>> input_audios_;
-
 
  public:
   Context();
@@ -52,12 +51,12 @@ class Context {
     if (!filter_->IsAlive()) {
       return false;
     }
-    for (auto &input : input_videos_) {
+    for (auto& input : input_videos_) {
       if (input->IsAlive()) {
         return true;
       }
     }
-    for (auto &input : input_audios_) {
+    for (auto& input : input_audios_) {
       if (input->IsAlive()) {
         return true;
       }
@@ -66,5 +65,5 @@ class Context {
   }
 };
 
-}
-}
+}  // namespace recorder
+}  // namespace live

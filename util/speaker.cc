@@ -13,8 +13,10 @@ void Speaker::Speak() {
     if (!submit_queue_.TimedGet(&sample, std::chrono::milliseconds(100))) {
       continue;
     }
-    int channel_number = av_get_channel_layout_nb_channels(sample->channel_layout);
-    if (!ResetAudioDevice(channel_number, sample->sample_rate, AVSampleFormat(sample->format), sample->nb_samples)) {
+    int channel_number =
+        av_get_channel_layout_nb_channels(sample->channel_layout);
+    if (!ResetAudioDevice(channel_number, sample->sample_rate,
+                          AVSampleFormat(sample->format), sample->nb_samples)) {
       LOG_ERROR << "ResetAudioDevice failed";
       break;
     }
@@ -23,7 +25,7 @@ void Speaker::Speak() {
   is_alive_ = false;
 }
 
-void Speaker::SDLAudioDeviceCallbackInternal(Uint8 *stream, int len) {
+void Speaker::SDLAudioDeviceCallbackInternal(Uint8* stream, int len) {
   SDL_memset(stream, 0, len);
 
   AVFrameWrapper next;
@@ -33,12 +35,17 @@ void Speaker::SDLAudioDeviceCallbackInternal(Uint8 *stream, int len) {
     }
 
     // LOG_ERROR << "pts: " << next->pts
-    //   << ", pix_fmt: " << av_get_sample_fmt_name(AVSampleFormat(next->format))
+    //   << ", pix_fmt: " <<
+    //   av_get_sample_fmt_name(AVSampleFormat(next->format))
     //   << ", time_base: " << next->time_base.num << '/' << next->time_base.den
     //   << ", channel_layout: " << next->channel_layout;
 
-    size_t len = next->nb_samples * av_get_bytes_per_sample(AVSampleFormat(next->format)) * av_get_channel_layout_nb_channels(AVSampleFormat(next->channel_layout));
-    sample_buffer_.insert(sample_buffer_.end(), next->data[0], next->data[0] + len);
+    size_t len =
+        next->nb_samples *
+        av_get_bytes_per_sample(AVSampleFormat(next->format)) *
+        av_get_channel_layout_nb_channels(AVSampleFormat(next->channel_layout));
+    sample_buffer_.insert(sample_buffer_.end(), next->data[0],
+                          next->data[0] + len);
   }
   if (len > sample_buffer_.size()) {
     len = sample_buffer_.size();
@@ -46,7 +53,8 @@ void Speaker::SDLAudioDeviceCallbackInternal(Uint8 *stream, int len) {
   if (len == 0) {
     return;
   }
-  SDL_MixAudioFormat(stream, &sample_buffer_[0], desired_audio_spec_.format, len, SDL_MIX_MAXVOLUME);
+  SDL_MixAudioFormat(stream, &sample_buffer_[0], desired_audio_spec_.format,
+                     len, SDL_MIX_MAXVOLUME);
   auto dst = &sample_buffer_[0];
   auto src = &sample_buffer_[0] + len;
   auto copy_size = sample_buffer_.size() - len;
@@ -54,11 +62,14 @@ void Speaker::SDLAudioDeviceCallbackInternal(Uint8 *stream, int len) {
   sample_buffer_.resize(copy_size);
 }
 
-bool Speaker::ResetAudioDevice(int channel_number, int sample_rate, AVSampleFormat sample_format, int sample_number) {
-  if (audio_device_id_ != -1 && param_for_device_.channel_number == channel_number
-      && param_for_device_.sample_rate == sample_rate
-      && param_for_device_.sample_format == sample_format
-      && param_for_device_.sample_number == sample_number) {
+bool Speaker::ResetAudioDevice(int channel_number, int sample_rate,
+                               AVSampleFormat sample_format,
+                               int sample_number) {
+  if (audio_device_id_ != -1 &&
+      param_for_device_.channel_number == channel_number &&
+      param_for_device_.sample_rate == sample_rate &&
+      param_for_device_.sample_format == sample_format &&
+      param_for_device_.sample_number == sample_number) {
     return true;
   }
 
@@ -83,16 +94,20 @@ bool Speaker::ResetAudioDevice(int channel_number, int sample_rate, AVSampleForm
   // 转换 FFmpeg 的 sample_format 至 SDL 的
   switch (sample_format) {
     case AV_SAMPLE_FMT_U8:
-      desired_audio_spec_.format = AUDIO_U8; break;
+      desired_audio_spec_.format = AUDIO_U8;
+      break;
     case AV_SAMPLE_FMT_S16:
-      desired_audio_spec_.format = AUDIO_S16SYS; break;
+      desired_audio_spec_.format = AUDIO_S16SYS;
+      break;
     case AV_SAMPLE_FMT_S32:
-      desired_audio_spec_.format = AUDIO_S32SYS; break;
+      desired_audio_spec_.format = AUDIO_S32SYS;
+      break;
     case AV_SAMPLE_FMT_FLT:
-      desired_audio_spec_.format = AUDIO_F32SYS; break;
+      desired_audio_spec_.format = AUDIO_F32SYS;
+      break;
     default: {
       LOG_ERROR << "not handled this FFmpeg sample format: " << sample_format
-        << ", " << av_get_sample_fmt_name(sample_format);
+                << ", " << av_get_sample_fmt_name(sample_format);
       return false;
     }
   }
@@ -101,14 +116,16 @@ bool Speaker::ResetAudioDevice(int channel_number, int sample_rate, AVSampleForm
   desired_audio_spec_.userdata = this;
 
   LOG_INFO << "freq: " << desired_audio_spec_.freq
-    << ", channels: " << int(desired_audio_spec_.channels)
-    << ", samples: " << desired_audio_spec_.samples
-    << ", format: " << desired_audio_spec_.format;
+           << ", channels: " << int(desired_audio_spec_.channels)
+           << ", samples: " << desired_audio_spec_.samples
+           << ", format: " << desired_audio_spec_.format;
 
-  auto device_id = SDL_OpenAudioDevice(nullptr, 0, &desired_audio_spec_, nullptr, 0);
+  auto device_id =
+      SDL_OpenAudioDevice(nullptr, 0, &desired_audio_spec_, nullptr, 0);
 
   if (device_id < 2) {
-    LOG_ERROR << "SDL_OpenAudioDevice failed, ret: " << device_id << ", msg: " << SDL_GetError();
+    LOG_ERROR << "SDL_OpenAudioDevice failed, ret: " << device_id
+              << ", msg: " << SDL_GetError();
     return false;
   }
 
@@ -128,7 +145,7 @@ bool Speaker::ResetAudioDevice(int channel_number, int sample_rate, AVSampleForm
   return true;
 }
 
-bool Speaker::ConvertPlanarSampleToPacked(AVFrameWrapper &sample) {
+bool Speaker::ConvertPlanarSampleToPacked(AVFrameWrapper& sample) {
   switch (sample->format) {
     case AV_SAMPLE_FMT_U8:
     case AV_SAMPLE_FMT_S16:
@@ -166,16 +183,18 @@ bool Speaker::ConvertPlanarSampleToPacked(AVFrameWrapper &sample) {
       out_sample_format = AV_SAMPLE_FMT_S32;
       break;
     default:
-      LOG_ERROR << "not handle this format " << av_get_sample_fmt_name(in_sample_format);
+      LOG_ERROR << "not handle this format "
+                << av_get_sample_fmt_name(in_sample_format);
       return false;
   }
 
   auto channel_layout = sample->channel_layout;
   auto sample_rate = sample->sample_rate;
-  return audio_resample_helper_.Resample(sample, sample_rate, channel_layout, out_sample_format);
+  return audio_resample_helper_.Resample(sample, sample_rate, channel_layout,
+                                         out_sample_format);
 }
 
-void Speaker::Submit(AVFrameWrapper &&sample) {
+void Speaker::Submit(AVFrameWrapper&& sample) {
   if (!ConvertPlanarSampleToPacked(sample)) {
     LOG_ERROR << "ConvertPlanarSampleToPacked failed";
     return;
@@ -185,5 +204,5 @@ void Speaker::Submit(AVFrameWrapper &&sample) {
   }
 }
 
-}
-}
+}  // namespace util
+}  // namespace live

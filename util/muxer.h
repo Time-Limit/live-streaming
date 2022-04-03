@@ -1,34 +1,34 @@
 #pragma once
 
+#include "util/audio_resample_helper.h"
 #include "util/base.h"
 #include "util/queue.h"
 #include "util/video_scale_helper.h"
-#include "util/audio_resample_helper.h"
 
-#include <string>
 #include <future>
+#include <string>
 
 extern "C" {
 #include <libavutil/frame.h>
-#include <libavutil/mem.h>
 #include <libavutil/imgutils.h>
+#include <libavutil/mem.h>
 #include <libavutil/samplefmt.h>
 #include <libavutil/timestamp.h>
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
-#include <libswscale/swscale.h>
-#include <libswresample/swresample.h>
 #include <libavutil/opt.h>
+#include <libswresample/swresample.h>
+#include <libswscale/swscale.h>
 }
 
 namespace live {
 namespace util {
 
 typedef struct OutputStream {
-  AVStream *st = nullptr;
-  AVCodecContext *enc = nullptr;
-  AVPacket *packet = nullptr;
+  AVStream* st = nullptr;
+  AVCodecContext* enc = nullptr;
+  AVPacket* packet = nullptr;
 } OutputStream;
 
 struct MuxerParam {
@@ -46,9 +46,9 @@ struct MuxerParam {
 };
 
 class Muxer {
-  AVFormatContext *format_context_ = nullptr;
-  const AVOutputFormat *output_format_ = nullptr;
-  OutputStream video_st_ = { 0 }, audio_st_ = { 0 };
+  AVFormatContext* format_context_ = nullptr;
+  const AVOutputFormat* output_format_ = nullptr;
+  OutputStream video_st_ = {0}, audio_st_ = {0};
   const std::string filename = "./test.flv";
   MuxerParam muxer_param_;
 
@@ -60,15 +60,16 @@ class Muxer {
   bool is_alive_ = false;
 
  public:
-  Muxer(const MuxerParam &mp);
+  Muxer(const MuxerParam& mp);
   ~Muxer();
 
-  bool Submit(AVFrameWrapper &&wrapper) {
+  bool Submit(AVFrameWrapper&& wrapper) {
     if (!is_alive_) {
       return false;
     }
     if (queue_.Size() > 16 && wrapper->width) {
-      LOG_ERROR << "drop frame, type: " << (wrapper->channel_layout ? 'A' : 'V');
+      LOG_ERROR << "drop frame, type: "
+                << (wrapper->channel_layout ? 'A' : 'V');
       return false;
     }
     queue_.Put(std::move(wrapper));
@@ -76,6 +77,5 @@ class Muxer {
   }
 };
 
-}
-}
-
+}  // namespace util
+}  // namespace live

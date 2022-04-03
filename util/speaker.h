@@ -1,18 +1,18 @@
 #pragma once
 
-#include "util/base.h"
-#include "util/util.h"
-#include "util/queue.h"
 #include "util/audio_resample_helper.h"
+#include "util/base.h"
+#include "util/queue.h"
+#include "util/util.h"
 
-#include <thread>
 #include <future>
+#include <thread>
 
 #include <SDL2/SDL.h>
 
 extern "C" {
-#include <libswresample/swresample.h>
 #include <libavutil/opt.h>
+#include <libswresample/swresample.h>
 }
 
 namespace live {
@@ -24,22 +24,24 @@ class Speaker {
    * @Param param, 如果 param 和 current_sample_param_ 不同则重置
    * @return true 成功，false 失败
    */
-  bool ResetAudioDevice(int channel_number, int sample_rate, AVSampleFormat sample_format, int sample_number);
+  bool ResetAudioDevice(int channel_number, int sample_rate,
+                        AVSampleFormat sample_format, int sample_number);
 
   /*
    * @Param userdata, 指向 Speaker 对象的指针
    * @Param stream, 缓冲区指针
    * @Param len, 缓冲区长度
    */
-  static void SDLAudioDeviceCallback(void *userdata, Uint8 *stream, int len) {
-    reinterpret_cast<Speaker *>(userdata)->SDLAudioDeviceCallbackInternal(stream, len);
+  static void SDLAudioDeviceCallback(void* userdata, Uint8* stream, int len) {
+    reinterpret_cast<Speaker*>(userdata)->SDLAudioDeviceCallbackInternal(stream,
+                                                                         len);
   }
 
   /*
    * @Param stream, 缓冲区指针
    * @Param len, 缓冲区长度
    */
-  void SDLAudioDeviceCallbackInternal(Uint8 *stream, int len);
+  void SDLAudioDeviceCallbackInternal(Uint8* stream, int len);
 
   // 音频设备ID
   SDL_AudioDeviceID audio_device_id_ = -1;
@@ -58,7 +60,7 @@ class Speaker {
   // 即将提交给 SDL 的音频数据缓冲区
   std::vector<uint8_t> sample_buffer_;
 
-  // 和 SDLAudioDeviceCallback 线程交互的队列 
+  // 和 SDLAudioDeviceCallback 线程交互的队列
   util::Queue<AVFrameWrapper> sample_queue_;
 
   // 存放外部提交数据的队列
@@ -67,35 +69,37 @@ class Speaker {
 
   // 将 Planar 格式的采样转为 Packed 格式
   AudioResampleHelper audio_resample_helper_;
-  bool ConvertPlanarSampleToPacked(AVFrameWrapper &sample);
+  bool ConvertPlanarSampleToPacked(AVFrameWrapper& sample);
 
   /*
    * @note 会有单独的线程执行此函数。
-   * 消费 submit_queue_ 的数据，根据参数控制 audio_device_id_，并将音频数据写入 sample_queue_。
+   * 消费 submit_queue_ 的数据，根据参数控制 audio_device_id_，并将音频数据写入
+   * sample_queue_。
    *
    */
   void Speak();
 
  public:
-  // 外部调用 Sumbit 后，音频并未立即播放。可通过设置类型的回调函数获悉播放时机。
+  // 外部调用 Sumbit
+  // 后，音频并未立即播放。可通过设置类型的回调函数获悉播放时机。
   // 会在提交至SDL之前调用该函数。
-  using Callback = std::function<void(const AVFrameWrapper &)>;
+  using Callback = std::function<void(const AVFrameWrapper&)>;
 
  private:
   Callback callback_;
 
  public:
   Speaker(Callback cb = nullptr)
-    : is_alive_(true)
-    , sample_queue_(1)
-    , speak_future_(std::async(std::launch::async, &Speaker::Speak, this))
-    , callback_(std::move(cb)) {}
+      : is_alive_(true)
+      , sample_queue_(1)
+      , speak_future_(std::async(std::launch::async, &Speaker::Speak, this))
+      , callback_(std::move(cb)) {}
   ~Speaker();
 
-  Speaker(const Speaker &) = delete;
-  Speaker& operator=(const Speaker &) = delete;
+  Speaker(const Speaker&) = delete;
+  Speaker& operator=(const Speaker&) = delete;
 
-  void Submit(AVFrameWrapper &&sample);
+  void Submit(AVFrameWrapper&& sample);
 
   bool HasPendingData() const {
     return sample_queue_.Size() || submit_queue_.Size();
@@ -114,8 +118,10 @@ class Speaker {
     }
   }
 
-  bool IsAlive() { return is_alive_.load(); }
+  bool IsAlive() {
+    return is_alive_.load();
+  }
 };
 
-}
-}
+}  // namespace util
+}  // namespace live

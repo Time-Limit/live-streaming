@@ -11,7 +11,7 @@ inline bool ThisThreadIsMainThread() {
   return std::this_thread::get_id() == main_thread_id;
 }
 
-void WaitSDLEventUntilCheckerReturnFalse(std::function<bool ()> checker);
+void WaitSDLEventUntilCheckerReturnFalse(std::function<bool()> checker);
 
-}
-}
+}  // namespace util
+}  // namespace live

@@ -10,5 +10,5 @@ DECLARE_string(url);
 DECLARE_int32(window_width);
 DECLARE_int32(window_height);
 
-}
-}
+}  // namespace player
+}  // namespace live

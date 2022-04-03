@@ -9,8 +9,8 @@ extern "C" {
 #include <libavutil/timestamp.h>
 
 #include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
 #include <libavdevice/avdevice.h>
+#include <libavformat/avformat.h>
 }
 
 #include <SDL2/SDL.h>
@@ -20,21 +20,21 @@ namespace util {
 
 const std::thread::id main_thread_id = std::this_thread::get_id();
 
-void WaitSDLEventUntilCheckerReturnFalse(std::function<bool ()> checker) {
+void WaitSDLEventUntilCheckerReturnFalse(std::function<bool()> checker) {
   SDL_Event windowEvent;
-  while(checker()) {
+  while (checker()) {
     SDL_WaitEventTimeout(&windowEvent, 333);
   }
 }
 
-}
-}
+}  // namespace util
+}  // namespace live
 
 namespace {
 
 struct SDLLibGuarder {
   SDLLibGuarder() {
-    if (SDL_Init(SDL_INIT_AUDIO|SDL_INIT_VIDEO|SDL_INIT_TIMER) < 0) {
+    if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_TIMER) < 0) {
       std::string reason = std::string("SDL_Init failed, ") + SDL_GetError();
       LOG_ERROR << reason;
       throw reason;
@@ -56,4 +56,4 @@ struct FFmpegLibGuarder {
 
 static FFmpegLibGuarder ffmpeg_lib_guarder;
 
-}
+}  // namespace

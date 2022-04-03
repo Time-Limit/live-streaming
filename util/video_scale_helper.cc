@@ -1,8 +1,8 @@
 #include "util/video_scale_helper.h"
 
 extern "C" {
-#include <libavutil/imgutils.h>
 #include <libavformat/avformat.h>
+#include <libavutil/imgutils.h>
 }
 
 namespace live {
@@ -25,14 +25,15 @@ bool VideoScaleHelper::PixelData::Reset(int w, int h, AVPixelFormat fmt) {
   return true;
 }
 
-bool VideoScaleHelper::ResetSwsContext(int sw, int sh, AVPixelFormat sfmt, int dw, int dh, AVPixelFormat dfmt) {
-  if (sws_context_.get()
-    && pixel_data_.data_size >= 0
-    && src_width_ == sw && src_height_ == sh && src_pix_fmt_ == sfmt
-    && pixel_data_.width == dw && pixel_data_.height == dh && pixel_data_.pix_fmt == dfmt) {
+bool VideoScaleHelper::ResetSwsContext(int sw, int sh, AVPixelFormat sfmt,
+                                       int dw, int dh, AVPixelFormat dfmt) {
+  if (sws_context_.get() && pixel_data_.data_size >= 0 && src_width_ == sw &&
+      src_height_ == sh && src_pix_fmt_ == sfmt && pixel_data_.width == dw &&
+      pixel_data_.height == dh && pixel_data_.pix_fmt == dfmt) {
     return true;
   }
-  auto tmp = sws_getContext(sw, sh, sfmt, dw, dh, dfmt, SWS_BILINEAR, nullptr, nullptr, nullptr);
+  auto tmp = sws_getContext(sw, sh, sfmt, dw, dh, dfmt, SWS_BILINEAR, nullptr,
+                            nullptr, nullptr);
   if (tmp == nullptr) {
     LOG_ERROR << "sws_getContext failed";
     return false;
@@ -47,8 +48,10 @@ bool VideoScaleHelper::ResetSwsContext(int sw, int sh, AVPixelFormat sfmt, int d
   return true;
 }
 
-bool VideoScaleHelper::Scale(AVFrameWrapper &wrapper, int w, int h, AVPixelFormat fmt) {
-  if (!ResetSwsContext(wrapper->width, wrapper->height, AVPixelFormat(wrapper->format), w, h, fmt)) {
+bool VideoScaleHelper::Scale(AVFrameWrapper& wrapper, int w, int h,
+                             AVPixelFormat fmt) {
+  if (!ResetSwsContext(wrapper->width, wrapper->height,
+                       AVPixelFormat(wrapper->format), w, h, fmt)) {
     return false;
   }
 
@@ -58,13 +61,14 @@ bool VideoScaleHelper::Scale(AVFrameWrapper &wrapper, int w, int h, AVPixelForma
     return false;
   }
 
-  int ret = sws_scale_frame(sws_context_.get(), new_frame.GetRawPtr(), wrapper.GetRawPtr());
+  int ret = sws_scale_frame(sws_context_.get(), new_frame.GetRawPtr(),
+                            wrapper.GetRawPtr());
   if (ret < 0) {
     LOG_ERROR << "scale failed, error: " << av_err2str(ret);
     return false;
   }
 
-  //TODO 还需要拷贝其他值么？
+  // TODO 还需要拷贝其他值么？
   new_frame->pts = wrapper->pts;
   new_frame->time_base = wrapper->time_base;
   wrapper = std::move(new_frame);
@@ -72,5 +76,5 @@ bool VideoScaleHelper::Scale(AVFrameWrapper &wrapper, int w, int h, AVPixelForma
   return true;
 }
 
-}
-}
+}  // namespace util
+}  // namespace live
