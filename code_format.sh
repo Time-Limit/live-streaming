@@ -54,7 +54,7 @@ function do_format() {
   if [ -f ${TARGET_PATH} ]; then
     ${CLANG_FORMAT} ${TARGET_PATH}
   elif [ -d ${TARGET_PATH} ]; then
-    find ${TARGET_PATH} -name \*.h -print -o -name \*.cc -print | xargs ${CLANG_FORMAT}
+    find ${TARGET_PATH} -name \*.h -print -o -name \*.cc -print -o -name \*.cpp -print | xargs ${CLANG_FORMAT}
   else
     >&2 echo "${TARGET_PATH} does not exist or seems not be a regular file or directory."
     >&2 echo "If you're specifying parameters, please kindly note that it's deprecated."

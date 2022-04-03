@@ -35,7 +35,7 @@ bool Decoder::PixelData::Reset(int w, int h, AVPixelFormat fmt) {
 bool Decoder::DecodeVideoPacket(const AVStream* stream, AVCodecContext* ctx,
                                 const AVPacket* pkt,
                                 std::vector<AVFrameWrapper>* frames) {
-  auto callback = [this, pkt, stream, ctx,
+  auto callback = [this, stream, ctx,
                    frames](const AVFrame* av_frame) -> bool {
     int width = ctx->width;
     int height = ctx->height;
@@ -122,7 +122,6 @@ bool Decoder::DecodeAudioPacket(const AVStream* stream, AVCodecContext* ctx,
     // enum AVSampleFormat 定义参见 FFmpeg/libavutil/samplefmt.h
     AVSampleFormat sample_format = AVSampleFormat(ctx->sample_fmt);
     int sample_number = av_frame->nb_samples;
-    int channel_number = stream->codecpar->channels;
     int sample_rate = stream->codecpar->sample_rate;
     std::vector<uint8_t> sample_data;
 

@@ -44,7 +44,7 @@ class Context {
   AVCodecContext* audio_dec_ctx_ = nullptr;
 
   uint8_t* avio_ctx_buffer_ = nullptr;
-  size_t avio_ctx_buffer_size_ = -1;
+  // size_t avio_ctx_buffer_size_ = -1;
 
   AVIOContext* avio_ctx_ = nullptr;
 
@@ -91,8 +91,8 @@ class Context {
       playing_time_interval_;  // 当前正在播放的音频采样数据的
                                // pts 区间
 
-  int64_t started_playing_micro_second_ =
-      -1;  // 开始播放时的 alive_micro_seconds_ 的值
+  //int64_t started_playing_micro_second_ =
+  //    -1;  // 开始播放时的 alive_micro_seconds_ 的值
   int64_t alive_micro_seconds_ =
       0;  // Context 对象创建的时长，单位毫秒。会有一个线程专门更新该字段
   bool is_alive_ = true;            // 是否执行析构函数了
