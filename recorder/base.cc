@@ -231,8 +231,7 @@ bool Input::Run() {
     return true;
   }
 
-  decoder_future_ =
-      std::move(std::async(std::launch::async, &Input::Decode, this));
+  decoder_future_ = std::async(std::launch::async, &Input::Decode, this);
 
   return true;
 }

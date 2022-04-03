@@ -4,8 +4,9 @@ CC = g++
 
 args = -Wall -O3 -std=c++14
 inls = -I./util/net/ -I./util/ -I./
-lds = -lgflags -lavutil -lavcodec -lavdevice -lavformat -lavfilter -lswscale -lz -lswresample -llzma -liconv -lspeex -lmp3lame -lbz2 -lSDL2  -lx264
-frameworks = -framework AudioToolBox -framework VideoToolbox -framework CoreFoundation -framework CoreMedia -framework CoreVideo -framework CoreServices -framework Security -framework AVFoundation -framework CoreImage -framework AppKit -framework CoreAudio -framework OpenGL -framework Foundation
+lds = -lgflags -lavutil -lavcodec -lavdevice -lavformat -lavfilter -lswscale -lz -lswresample -llzma -liconv -lspeex -lmp3lame -lbz2 -lSDL2  -lx264 -lpostproc
+frameworks = -framework AudioToolBox -framework VideoToolbox -framework CoreFoundation -framework CoreMedia -framework CoreVideo -framework CoreServices	\
+						 -framework Security -framework AVFoundation -framework CoreImage -framework AppKit -framework CoreAudio -framework OpenGL -framework Foundation
 
 util_objs = ./util/audio_resample_helper.o ./util/decoder.o ./util/env.o ./util/filter.o ./util/muxer.o ./util/reader.o ./util/renderer.o ./util/speaker.o ./util/util.o ./util/video_scale_helper.o
 
@@ -23,3 +24,5 @@ recorder-client: $(util_objs) $(util_net_objs)
 .cc.o:
 	g++ -c $^ -o $@ $(inls) $(args)
 
+clean:
+	rm -rf $(util_objs) $(util_net_objs)

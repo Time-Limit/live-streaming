@@ -118,11 +118,8 @@ AVSampleFormat ExtractPCMData(AVSampleFormat sample_format, int sample_number,
 bool Decoder::DecodeAudioPacket(const AVStream* stream, AVCodecContext* ctx,
                                 const AVPacket* pkt,
                                 std::vector<AVFrameWrapper>* samples) {
-  auto callback = [pkt, stream, samples, ctx](const AVFrame* av_frame) -> bool {
+  auto callback = [stream, samples](const AVFrame* av_frame) -> bool {
     // enum AVSampleFormat 定义参见 FFmpeg/libavutil/samplefmt.h
-    AVSampleFormat sample_format = AVSampleFormat(ctx->sample_fmt);
-    int sample_number = av_frame->nb_samples;
-    int sample_rate = stream->codecpar->sample_rate;
     std::vector<uint8_t> sample_data;
 
     // 将 PCM 数据从 av_frame 复制至 sample_data
