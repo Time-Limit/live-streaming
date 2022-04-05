@@ -35,8 +35,7 @@ bool Decoder::PixelData::Reset(int w, int h, AVPixelFormat fmt) {
 bool Decoder::DecodeVideoPacket(const AVStream* stream, AVCodecContext* ctx,
                                 const AVPacket* pkt,
                                 std::vector<AVFrameWrapper>* frames) {
-  auto callback = [this, stream, ctx,
-                   frames](const AVFrame* av_frame) -> bool {
+  auto callback = [this, stream, ctx, frames](const AVFrame* av_frame) -> bool {
     int width = ctx->width;
     int height = ctx->height;
     AVPixelFormat pix_fmt = ctx->pix_fmt;

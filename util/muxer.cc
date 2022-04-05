@@ -8,7 +8,7 @@ namespace util {
 DEFINE_int32(muxer_audio_bit_rate, 0, "");
 DEFINE_int32(muxer_video_bit_rate, 0, "");
 
-//static void log_packet(const AVFormatContext* fmt_ctx, const AVPacket* pkt) {
+// static void log_packet(const AVFormatContext* fmt_ctx, const AVPacket* pkt) {
 //  AVRational* time_base = &fmt_ctx->streams[pkt->stream_index]->time_base;
 //
 //  printf(

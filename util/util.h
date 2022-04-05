@@ -12,7 +12,16 @@
 namespace live {
 namespace util {
 
+bool LocalHostIsLittleEndian();
+
 bool ReadFile(const std::string& path, std::vector<uint8_t>& data);
+
+uint64_t GetPassedTimeSinceStartedInMicroSeconds();
+
+inline uint64_t GetTimestamp() {
+  auto now = std::chrono::system_clock::now().time_since_epoch();
+  return std::chrono::duration_cast<std::chrono::microseconds>(now).count();
+}
 
 struct StreamLog {
   std::ostream& stream;
