@@ -21,15 +21,23 @@ void ActionScriptObject::Serialize(ByteStream& bs) const {
                 string_value.size());
       break;
     }
+    case ECMA_ARRAY:
     case OBJECT: {
       bs << marker;
+      if (marker == ECMA_ARRAY) {
+        bs << uint32_t(dict_value.size());
+      }
       for (auto& pr : dict_value) {
-        bs << uint16_t(pr.first.size()) << *pr.second.get();
+        const uint8_t* raw = reinterpret_cast<const uint8_t*>(pr.first.c_str());
+        size_t size = pr.first.size();
+        bs << uint16_t(size) << ByteStream::ConstRawPtrWrapper(raw, size)
+           << *pr.second.get();
       }
       bs << uint16_t(0) << uint8_t(END);
       break;
     }
     case NULL_TYPE: {
+      bs << marker;
       break;
     }
     default: {
@@ -58,7 +66,11 @@ void ActionScriptObject::Deserialize(ByteStream& bs) {
       string_value = bs.PopString(bs.Pop<uint16_t>());
       break;
     }
+    case ECMA_ARRAY:
     case OBJECT: {
+      if (marker == ECMA_ARRAY) {
+        dict_value.reserve(bs.Pop<uint32_t>());
+      }
       while (true) {
         std::string name = bs.PopString(bs.Pop<uint16_t>());
         std::shared_ptr<ActionScriptObject> obj(new ActionScriptObject());
@@ -108,10 +120,11 @@ void CommandMessage::Deserialize(ByteStream& bs) {
 
   LOG_ERROR << "name: " << name << ", id: " << id;
 
-  bs >> obj1 >> obj2;
+  bs >> obj1 >> obj2 >> obj3;
 
   obj1.Output();
   obj2.Output();
+  obj3.Output();
 }
 
 }  // namespace rtmp

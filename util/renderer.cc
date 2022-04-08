@@ -141,13 +141,13 @@ void Renderer::Render() {
 
     int64_t delay_time = delay_time_calculator_(frame);
 
-    // LOG_ERROR << "pts: " << frame->pts << ", delay: " << delay_time
-    //  << ", height: " << frame->height
-    //  << ", width: " << frame->width
-    //  << ", linesize: " << frame->linesize[0]
-    //  << ", pix_fmt: " << av_get_pix_fmt_name(AVPixelFormat(frame->format))
-    //  << ", time_base: " << frame->time_base.num << '/' <<
-    //  frame->time_base.den;
+    //LOG_ERROR << "pts: " << frame->pts << ", delay: " << delay_time
+    // << ", height: " << frame->height
+    // << ", width: " << frame->width
+    // << ", linesize: " << frame->linesize[0]
+    // << ", pix_fmt: " << av_get_pix_fmt_name(AVPixelFormat(frame->format))
+    // << ", time_base: " << frame->time_base.num << '/' <<
+    // frame->time_base.den;
 
     if (delay_time > 0) {
       std::this_thread::sleep_for(std::chrono::microseconds(delay_time));

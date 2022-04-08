@@ -22,6 +22,13 @@ class ByteStream {
     uint8_t* ptr = reinterpret_cast<uint8_t*>(&v);
     pop_bytes(ptr, size, len);
   }
+  /*
+   * @Param ptr，len: ptr 指向一段长度为 len 字节的内存
+   * @Param size: 填充其中的低 size 个字节。
+   * @Note 比如整个区间是 [0 ,len)，
+   * 大端依次填充 ptr[len-size], ptr[len-size+1] ...
+   * 小端依次填充 ptr[size-1], ptr[size-2] ...
+   */
   void pop_bytes(uint8_t* ptr, size_t size, size_t len);
 
   template <typename T, typename = typename std::enable_if<

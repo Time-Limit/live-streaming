@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <iostream>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace live {
@@ -33,13 +34,14 @@ struct StreamLog {
     char msecs[4] = {0};
     snprintf(
         msecs, 4, "%03lld",
-        std::chrono::duration_cast<std::chrono::microseconds>(now).count() %
-            1000);
+        std::chrono::duration_cast<std::chrono::microseconds>(now).count() /
+            1000 % 1000);
     // auto msecs =
     // std::chrono::duration_cast<std::chrono::microseconds>(now).count()%1000;
-    stream << "\033[2m" << c << std::put_time(std::localtime(&t), "%H:%M:%S")
-           << '.' << msecs << ':' << file << ':' << std::setfill('0')
-           << std::setw(5) << line << ':' << func << ": "
+    stream << "\033[2m" << c << std::this_thread::get_id() << ':'
+           << std::put_time(std::localtime(&t), "%H:%M:%S") << '.' << msecs
+           << ':' << file << ':' << std::setfill('0') << std::setw(5) << line
+           << ':' << func << ": "
            << "\033[0m";
   }
   ~StreamLog() {

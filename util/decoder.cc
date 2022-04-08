@@ -52,92 +52,33 @@ bool Decoder::DecodeVideoPacket(const AVStream* stream, AVCodecContext* ctx,
     AVFrameWrapper& frame = frames->back();
     frame->time_base = stream->time_base;
 
-    // LOG_ERROR << "video, pts in AVFrame: " << av_frame->pts << ", pts in
-    // FrameParam: " << frame.param.pts
-    //   << ", stream->time_base: " << stream->time_base.num << "/" <<
-    //   stream->time_base.den;
+    //LOG_ERROR << "video, pts in AVFrame: " << frame->pts
+    //          << ", stream->time_base: " << stream->time_base.num << "/"
+    //          << stream->time_base.den;
 
     return true;
   };
   return Packet2AVFrame(ctx, pkt, callback);
 }
 
-AVSampleFormat ExtractPCMData(AVSampleFormat sample_format, int sample_number,
-                              int channel_number, const AVFrame* frame,
-                              std::vector<uint8_t>& sample_data) {
-  switch (sample_format) {
-    case AV_SAMPLE_FMT_U8:
-    case AV_SAMPLE_FMT_S16:
-    case AV_SAMPLE_FMT_S32:
-    case AV_SAMPLE_FMT_FLT:
-    case AV_SAMPLE_FMT_DBL:
-    case AV_SAMPLE_FMT_S64: {
-      // AvFrame::extended_data 参见 libavutil/frame.h:369
-      // AvFrame::linesize 参见 libavutil/frame.h:353
-      sample_data.insert(sample_data.end(), frame->extended_data[0],
-                         frame->extended_data[0] + frame->linesize[0]);
-      return sample_format;
-    }
-    case AV_SAMPLE_FMT_U8P:
-    case AV_SAMPLE_FMT_S16P:
-    case AV_SAMPLE_FMT_S32P:
-    case AV_SAMPLE_FMT_FLTP:
-    case AV_SAMPLE_FMT_DBLP:
-    case AV_SAMPLE_FMT_S64P: {
-      static const AVSampleFormat dict[AV_SAMPLE_FMT_NB] = {
-          AV_SAMPLE_FMT_NONE, AV_SAMPLE_FMT_NONE, AV_SAMPLE_FMT_NONE,
-          AV_SAMPLE_FMT_NONE, AV_SAMPLE_FMT_NONE, AV_SAMPLE_FMT_U8,
-          AV_SAMPLE_FMT_S16,  AV_SAMPLE_FMT_S32,  AV_SAMPLE_FMT_FLT,
-          AV_SAMPLE_FMT_DBL,  AV_SAMPLE_FMT_NONE, AV_SAMPLE_FMT_S64};
-
-      int sample_size = av_get_bytes_per_sample(sample_format);
-
-      for (int i = 0; i < sample_number; i++) {
-        for (int j = 0; j < channel_number; j++) {
-          auto begin = frame->extended_data[j] + i * sample_size;
-          auto end = frame->extended_data[j] + (i + 1) * sample_size;
-          sample_data.insert(sample_data.end(), begin, end);
-        }
-      }
-
-      // LOG_INFO << "convert sample format, "
-      //  << av_get_sample_fmt_name(sample_format) << " to " <<
-      //  av_get_sample_fmt_name(dict[sample_format]);
-
-      return dict[sample_format];
-    }
-    default: {
-      LOG_ERROR << "invalid sample format: " << sample_format;
-      return AV_SAMPLE_FMT_NONE;
-    }
-  }
-  return AV_SAMPLE_FMT_NONE;
-}
-
 bool Decoder::DecodeAudioPacket(const AVStream* stream, AVCodecContext* ctx,
                                 const AVPacket* pkt,
                                 std::vector<AVFrameWrapper>* samples) {
-  auto callback = [stream, samples](const AVFrame* av_frame) -> bool {
+  auto callback = [stream, samples, pkt](const AVFrame* av_frame) -> bool {
     // enum AVSampleFormat 定义参见 FFmpeg/libavutil/samplefmt.h
     std::vector<uint8_t> sample_data;
-
-    // 将 PCM 数据从 av_frame 复制至 sample_data
-    // sample_format = ExtractPCMData(sample_format, sample_number,
-    // channel_number, av_frame, sample_data); if (sample_format ==
-    // AV_SAMPLE_FMT_NONE) {
-    //  LOG_ERROR << "extract pcm data failed";
-    //  return false;
-    //}
 
     samples->emplace_back(av_frame);
     AVFrameWrapper& sample = samples->back();
     sample->time_base = stream->time_base;
 
-    // LOG_ERROR << "audio, pts in AVFrame: " << av_frame->pts << ", pts in
-    // FrameParam: " << sample.param.pts
-    //  << ", duration: " << sample.param.duration
-    //  << ", stream->time_base: " << stream->time_base.num << "/" <<
-    //  stream->time_base.den;
+    LOG_ERROR << "audio, pts in AVFrame: " << av_frame->pts
+              << ", stream->time_base: " << stream->time_base.num << "/"
+              << stream->time_base.den
+              << ", best_effort_timestamp: " << av_frame->best_effort_timestamp
+              << ", pts in pkt: " << pkt->pts << ", dts in pkt: " << pkt->dts
+              << ", sample_number: " << av_frame->nb_samples
+              << ", sampel_rate: " << av_frame->sample_rate;
 
     return true;
   };

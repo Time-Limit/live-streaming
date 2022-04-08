@@ -9,15 +9,15 @@ namespace rtmp {
 
 struct ChunkHeader : public Protocol {
   struct {
-    uint8_t format;
-    uint32_t chunk_stream_id;
+    uint8_t format = 0;
+    uint32_t chunk_stream_id = 0;
   } basic;
 
   struct Common {
-    uint32_t timestamp;
-    uint32_t length;
-    uint8_t type;
-    uint32_t message_stream_id;
+    uint32_t timestamp = 0;
+    uint32_t length = 0;
+    uint8_t type = 0;
+    uint32_t message_stream_id = 0;
   } common;
 
   uint32_t extended_timestamp;
@@ -28,10 +28,10 @@ struct ChunkHeader : public Protocol {
 
 // 在反序列网络字节流时, 这个类用来合并 ChunkMessage, 存储 Header 以及 Payload
 struct Message : public Protocol {
-  uint8_t type;
-  uint32_t timestamp;
-  uint32_t stream_id;
-  uint32_t payload_length;
+  uint8_t type = 0;
+  uint32_t timestamp = 0;
+  uint32_t stream_id = 0;
+  uint32_t payload_length = 0;
 
   std::vector<uint8_t> payload;
 

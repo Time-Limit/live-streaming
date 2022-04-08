@@ -2,7 +2,7 @@
 
 CC = g++
 
-args = -Wall -O0 -std=c++14
+args = -Wall -O0 -g -std=c++14
 inls = -I./util/net/ -I./util/ -I./
 lds = -lgflags -lavutil -lavcodec -lavdevice -lavformat -lavfilter -lswscale -lz -lswresample -llzma -liconv -lspeex -lmp3lame -lbz2 -lSDL2  -lx264 -lpostproc -levent
 frameworks = -framework AudioToolBox -framework VideoToolbox -framework CoreFoundation -framework CoreMedia -framework CoreVideo -framework CoreServices	\

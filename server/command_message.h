@@ -19,6 +19,7 @@ struct ActionScriptObject : public Protocol {
     STRING = 2,
     OBJECT = 3,
     NULL_TYPE = 5,
+    ECMA_ARRAY = 8,
     END = 9,
     UNINIT = 255,
   };
@@ -57,6 +58,7 @@ struct ActionScriptObject : public Protocol {
         LOG_ERROR << "string: " << string_value;
         break;
       }
+      case ECMA_ARRAY:
       case OBJECT: {
         LOG_ERROR << "dict, size: " << dict_value.size();
         for (const auto& pr : dict_value) {
@@ -83,6 +85,7 @@ struct CommandMessage : public Message {
   double id;
   ActionScriptObject obj1;
   ActionScriptObject obj2;
+  ActionScriptObject obj3;
 
   CommandMessage(const std::string& n = "", double i = 0) : name(n), id(i) {
     Message::type = 20;

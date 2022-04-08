@@ -1,4 +1,7 @@
 #include "server/rtmp.h"
+#include "server/flv.h"
+
+#include <fstream>
 
 namespace live {
 namespace util {
@@ -15,19 +18,48 @@ void RTMPSession::HandleCommandMessage(uint32_t csid, const Message& msg,
                                    GetPassedTimeSinceStartedInMicroSeconds()))
        << ChunkSerializeHelper(this, CommandMessage("_result", command.id))
        << ByteStream::Commit();
-  } else if (command.name == "releaseStream" || command.name == "FCPublish") {
+  } else if (command.name == "releaseStream" || command.name == "FCPublish" ||
+             command.name == "FCUnpublish") {
     ByteStream(WriteDataBuffer())
         << ChunkSerializeHelper(this, CommandMessage("_result", command.id))
         << ByteStream::Commit();
   } else if (command.name == "createStream") {
     CommandMessage cm("_result", command.id);
+    cm.obj1.marker = ActionScriptObject::Type::NULL_TYPE;
     cm.obj2.marker = ActionScriptObject::Type::DOUBLE;
     cm.obj2.double_value = GetPassedTimeSinceStartedInMicroSeconds();
 
-    LOG_ERROR << "msg id for createStream command " << cm.obj2.double_value;
+    LOG_ERROR << "msg id for createStream command "
+              << uint64_t(cm.obj2.double_value);
 
     ByteStream(WriteDataBuffer())
         << ChunkSerializeHelper(this, std::move(cm)) << ByteStream::Commit();
+  } else if (command.name == "publish") {
+    CommandMessage cm("onStatus", command.id);
+
+    cm.obj1.marker = ActionScriptObject::Type::NULL_TYPE;
+
+    std::shared_ptr<ActionScriptObject> desc(new ActionScriptObject());
+    desc->marker = ActionScriptObject::Type::STRING;
+    desc->string_value = "NetStream.Publish.Start";
+
+    std::shared_ptr<ActionScriptObject> level(new ActionScriptObject());
+    level->marker = ActionScriptObject::Type::STRING;
+    level->string_value = "info";
+
+    std::shared_ptr<ActionScriptObject> code(new ActionScriptObject());
+    code->marker = ActionScriptObject::Type::STRING;
+    code->string_value = "NetStream.Publish.Start";
+
+    cm.obj2.marker = ActionScriptObject::Type::OBJECT;
+    cm.obj2.dict_value["level"] = level;
+    cm.obj2.dict_value["code"] = code;
+    cm.obj2.dict_value["description"] = desc;
+
+    ByteStream(WriteDataBuffer())
+        << ChunkSerializeHelper(this, std::move(cm)) << ByteStream::Commit();
+  } else if (command.name == "deleteStream") {
+    // response nothing
   } else {
     LOG_ERROR << "not handle this command " << command.name;
     assert(false);
@@ -40,22 +72,97 @@ void RTMPSession::HandleCommandMessage(uint32_t csid, const Message& msg,
   }
 }
 
+std::once_flag write_file_header_flag;
+static std::ofstream outfile("test.flv", std::ofstream::binary);
+int cnt = 0;
+int64_t start = 0;
+
 void RTMPSession::HandleMessage(uint32_t csid, Message&& msg) {
-  switch (msg.type) {
-    case 20: {
-      try {
-        CommandMessage command;
-        ByteStream(msg.payload) >> command;
-        HandleCommandMessage(csid, msg, command);
-      } catch (...) {
-        LOG_ERROR << "invalid command";
-        Session::SetFlag(Session::FLAG::NEED_CLOSE);
+  std::call_once(write_file_header_flag, []() {
+    std::vector<uint8_t> header;
+    ByteStream(header) << flv::Header(0x01 | 0x04) << uint32_t(0)
+                       << ByteStream::Commit();
+
+    outfile.write(reinterpret_cast<const char*>(&header[0]), header.size());
+
+    LOG_ERROR << "header size " << header.size();
+
+    start = GetPassedTimeSinceStartedInMicroSeconds();
+  });
+
+  try {
+    switch (msg.type) {
+      case 8:
+      case 9: {
+        LOG_ERROR << "msg.timestamp: " << msg.timestamp << ", msg.type: " << uint16_t(msg.type);
+
+        flv::Tag tag(msg.type, msg.payload.size(), msg.timestamp);
+        tag.data = msg.payload;
+
+        std::vector<uint8_t> final_data;
+        ByteStream(final_data)
+            << tag << uint32_t(msg.payload.size()) << ByteStream::Commit();
+
+        outfile.write(reinterpret_cast<const char*>(&final_data[0]),
+                      final_data.size());
+        outfile.flush();
+        break;
       }
-      break;
+      case 18: {
+        try {
+          ByteStream bs(msg.payload);
+          std::vector<ActionScriptObject> objs;
+          while (bs.Remain()) {
+            LOG_ERROR << "next stream, remain: " << bs.Remain();
+            ActionScriptObject data;
+            bs >> data;
+            data.Output();
+            if (data.marker != ActionScriptObject::Type::STRING ||
+                data.string_value != "@setDataFrame") {
+              objs.emplace_back(data);
+            }
+          }
+          std::vector<uint8_t> final_data;
+          for (auto& obj : objs) {
+            ByteStream(final_data) << obj << ByteStream::Commit();
+          }
+
+          flv::Tag tag(flv::FLAG::SCRIPT_TAG, final_data.size(), msg.timestamp);
+          std::swap(tag.data, final_data);
+
+          ByteStream(final_data) << tag << ByteStream::Commit();
+
+          outfile.write(reinterpret_cast<const char*>(&final_data[0]),
+                        final_data.size());
+          uint32_t size = final_data.size();
+          std::vector<uint8_t> bytes;
+          ByteStream(bytes) << size << ByteStream::Commit();
+          outfile.write(reinterpret_cast<const char*>(&bytes[0]), 4);
+          ByteStream(final_data).DumpBytes(1000);
+          LOG_ERROR << "size: " << size;
+          ByteStream(bytes).DumpBytes(1000);
+        } catch (...) {
+          LOG_ERROR << "parse ActionScriptObject failed";
+        }
+        break;
+      }
+      case 20: {
+        try {
+          CommandMessage command;
+          ByteStream(msg.payload) >> command;
+          HandleCommandMessage(csid, msg, command);
+        } catch (...) {
+          LOG_ERROR << "invalid command";
+          Session::SetFlag(Session::FLAG::NEED_CLOSE);
+        }
+        break;
+      }
+      default: {
+        LOG_ERROR << "not handler this type " << uint32_t(msg.type);
+      }
     }
-    default: {
-      LOG_ERROR << "not handler this type " << uint32_t(msg.type);
-    }
+  } catch (...) {
+    LOG_ERROR << "got an exception";
   }
 }
 
@@ -113,7 +220,7 @@ bool RTMPSession::OnReadInUninitializedState() {
       return false;
     }
   } catch (const ByteStream::NotEnoughException& e) {
-    LOG_ERROR << "data is not enough";
+    // LOG_ERROR << "data is not enough";
     return true;
   }
 
@@ -130,7 +237,7 @@ bool RTMPSession::OnReadInVersionSentState() {
   try {
     ByteStream(ReadDataBuffer()) >> c1 >> ByteStream::Commit();
   } catch (const ByteStream::NotEnoughException& e) {
-    LOG_ERROR << "data is not enough";
+    // LOG_ERROR << "data is not enough";
     return true;
   }
 
@@ -151,7 +258,7 @@ bool RTMPSession::OnReadInAckSentState() {
   try {
     ByteStream(ReadDataBuffer()) >> c2 >> ByteStream::Commit();
   } catch (const ByteStream::NotEnoughException& e) {
-    LOG_ERROR << "data is not enough";
+    // LOG_ERROR << "data is not enough";
     return true;
   }
 
@@ -166,6 +273,7 @@ bool RTMPSession::OnReadInAckSentState() {
 bool RTMPSession::OnReadInHandeShakeDoneState() {
   ChunkHeader chunk_header;
   try {
+    // 先进性各种检查，在检查通过前，不能进行写入
     ByteStream bs(ReadDataBuffer());
     bs >> chunk_header;
 
@@ -181,9 +289,6 @@ bool RTMPSession::OnReadInHandeShakeDoneState() {
                     << chunk_header.basic.chunk_stream_id;
           return false;
         }
-        // Type-1 的字段好奇怪，复用了 message_stream_id 却未复用
-        // message_type_id 和 length 难道一个 message 还能有多种 type 和 length
-        // ?
         chunk_header.common.message_stream_id = it->second.message_stream_id;
         break;
       }
@@ -213,21 +318,24 @@ bool RTMPSession::OnReadInHandeShakeDoneState() {
       }
     }
 
-    LOG_ERROR << "format is " << uint32_t(chunk_header.basic.format)
-              << ", csid is " << chunk_header.basic.chunk_stream_id;
-
-    LOG_ERROR << "type: " << uint32_t(chunk_header.common.type)
-              << ", length: " << chunk_header.common.length
-              << ", timestamp: " << chunk_header.common.timestamp
-              << ", message_stream_id: "
-              << chunk_header.common.message_stream_id
-              << ", extended_timestamp: " << chunk_header.extended_timestamp;
-
     MessageId msg_id = GetMessageId(chunk_header.basic.chunk_stream_id,
                                     chunk_header.common.message_stream_id);
 
+    uint32_t message_timestamp = 0;
+    if (chunk_header.basic.format == 0) {
+      message_timestamp = chunk_header.common.timestamp;
+    } else {
+      auto it = message_previous_timestamp_.find(msg_id);
+      if (it == message_previous_timestamp_.end()) {
+        LOG_ERROR << "not found message previous timestamp, msg_id: " << msg_id;
+        return false;
+      }
+      message_timestamp = it->second + chunk_header.common.timestamp;
+    }
+
     auto it = reading_messages_.find(msg_id);
     auto expect_data_len = max_chunk_size_;
+
     if (it == reading_messages_.end()) {
       expect_data_len = std::min(expect_data_len, chunk_header.common.length);
     } else {
@@ -240,19 +348,14 @@ bool RTMPSession::OnReadInHandeShakeDoneState() {
       throw ByteStream::NotEnoughException();
     }
 
+    // 后续开始写入逻辑
+
     Message* msg = nullptr;
     if (it == reading_messages_.end()) {
-      if (chunk_header.basic.format != 0) {
-        LOG_ERROR << "expect type-0 chunk, but got "
-                  << uint16_t(chunk_header.basic.format)
-                  << ", csid: " << chunk_header.basic.chunk_stream_id
-                  << ", msid: " << chunk_header.common.message_stream_id;
-      }
-
       msg = &(reading_messages_[msg_id] = Message());
 
       msg->type = chunk_header.common.type;
-      msg->timestamp = chunk_header.common.timestamp;
+      msg->timestamp = message_timestamp;
       msg->stream_id = chunk_header.common.message_stream_id;
       msg->payload_length = chunk_header.common.length;
 
@@ -268,10 +371,22 @@ bool RTMPSession::OnReadInHandeShakeDoneState() {
     previous_chunk_commons_[chunk_header.basic.chunk_stream_id] =
         chunk_header.common;
 
+    //LOG_ERROR << "chunk received, csid: "
+    //  << chunk_header.basic.chunk_stream_id
+    //  << ", msid: " << chunk_header.common.message_stream_id
+    //  << ", delta: " << chunk_header.common.timestamp
+    //  << ", format: " << uint16_t(chunk_header.basic.format)
+    //  << ", timestamp: " << message_timestamp
+    //  << ", msg-type: " << uint16_t(chunk_header.common.type);
+
     bs >> ByteStream::Commit();
 
+    if (chunk_header.basic.format == 0) {
+      message_previous_timestamp_[msg_id] = message_timestamp;
+    }
+
     if (msg->payload.size() == msg->payload_length) {
-      LOG_ERROR << "message is received, csid: "
+      LOG_ERROR << "message received, csid: "
                 << chunk_header.basic.chunk_stream_id
                 << ", msid: " << msg->stream_id
                 << ", type: " << uint32_t(msg->type)
@@ -280,10 +395,11 @@ bool RTMPSession::OnReadInHandeShakeDoneState() {
       HandleMessage(chunk_header.basic.chunk_stream_id, std::move(*msg));
 
       reading_messages_.erase(msg_id);
+      message_previous_timestamp_[msg_id] = message_timestamp;
     }
 
   } catch (const ByteStream::NotEnoughException& e) {
-    LOG_ERROR << "data is not enough";
+    // LOG_ERROR << "data is not enough";
     return true;
   }
 
@@ -291,7 +407,6 @@ bool RTMPSession::OnReadInHandeShakeDoneState() {
 }
 
 bool RTMPSession::OnRead() {
-  LOG_ERROR << "current state_ is " << state_;
   switch (state_) {
     case UNINTIALIZED: {
       return OnReadInUninitializedState();

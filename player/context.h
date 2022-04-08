@@ -157,8 +157,14 @@ class Context {
   void UpdatePlayingTimeInterval(const util::AVFrameWrapper& frame) {
     int64_t start =
         frame->pts * 1000000L * frame->time_base.num / frame->time_base.den;
-    int64_t duration = frame->nb_samples / frame->sample_rate;
+    int64_t duration = frame->nb_samples * double(1000.0) / frame->sample_rate;
     playing_time_interval_.store({start, duration, alive_micro_seconds_});
+    //LOG_ERROR << "start: " << start << ", duration: " << duration
+    //          << ", alive_micro_seconds_: " << alive_micro_seconds_
+    //          << ", pts: " << frame->pts << ", num: " << frame->time_base.num
+    //          << ", den: " << frame->time_base.den
+    //          << ", nb_samples: " << frame->nb_samples
+    //          << ", sample_rate: " << frame->sample_rate;
   }
 
   /*

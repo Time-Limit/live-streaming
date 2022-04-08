@@ -61,7 +61,7 @@ void Listener::ReadCallback(bufferevent* bev, void* ptr) {
     cnt = evbuffer_get_length(input);
   }
 
-  LOG_ERROR << "read data buffer size is " << bytes.size();
+  // LOG_ERROR << "read data buffer size is " << bytes.size();
 
   for (size_t pre = 0, cur = session->ReadDataBuffer().size();
        pre != cur && cur;) {
@@ -73,6 +73,7 @@ void Listener::ReadCallback(bufferevent* bev, void* ptr) {
     pre = cur;
     cur = session->ReadDataBuffer().size();
   }
+  // LOG_ERROR << "after readed data buffer size is " << bytes.size();
 }
 
 void Listener::WriteCallback(bufferevent* bev, void* data) {}

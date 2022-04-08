@@ -36,10 +36,12 @@ class RTMPSession : public Session {
   HandshakeMessage1 c1;
   HandshakeMessage2 c2;
 
-  // 总是拼凑一个完整的 (Type 0) ChunkHeader::Common
+  // 总是拼凑一个完整的 ChunkHeader::Common
   std::unordered_map<uint32_t, ChunkHeader::Common> previous_chunk_commons_;
+  std::unordered_map<uint64_t, uint32_t> message_previous_timestamp_;
 
-  // 正在从网络读取的 RTMP Message，key 为 <chunk id, stream id>
+  // 正在从网络读取的 RTMP Message，
+  // key 为 <chunk id, stream id>
   using MessageId = uint64_t;
   std::unordered_map<MessageId, Message> reading_messages_;
   uint32_t GetChunkIdFromMessageId(MessageId k) {
