@@ -20,7 +20,7 @@ void ChunkHeader::Serialize(ByteStream& bs) const {
 
   uint32_t extended_timestamp = 0;
   uint32_t timestamp = common.timestamp;
-  if (common.timestamp > 0x00FFFFFF) {
+  if (common.timestamp >= 0x00FFFFFF) {
     extended_timestamp = common.timestamp;
     timestamp = 0x00FFFFFF;
   }
@@ -99,6 +99,8 @@ void ChunkHeader::Deserialize(ByteStream& bs) {
     }
   }
 
+  // 当 format == 3 时，extended_timestamp 的解析依赖前一个 chunk
+  // 因此该逻辑在外围还需要尝试执行一次。。。有点破坏封装了。。
   if (common.timestamp == 0x00FFFFFF) {
     bs >> extended_timestamp;
   }
@@ -120,8 +122,16 @@ void ChunkSerializeHelper::Serialize(ByteStream& bs) const {
   header.basic.chunk_stream_id = session->GetChunkStreamIdForSending(message);
 
   if (header.common.type >= 7) {
-    header.common.timestamp = GetPassedTimeSinceStartedInMicroSeconds() / 1000;
-    header.common.message_stream_id = GetPassedTimeSinceStartedInMicroSeconds();
+    if (message.timestamp) {
+      header.common.timestamp = message.timestamp;
+    } else {
+      header.common.timestamp = GetPassedTimeSinceStartedInMicroSeconds() / 1000;
+    }
+    if (message.stream_id) {
+      header.common.message_stream_id = message.stream_id;
+    } else {
+      header.common.message_stream_id = GetPassedTimeSinceStartedInMicroSeconds();
+    }
   } else {
     header.common.timestamp = 0;
     header.common.message_stream_id = 0;

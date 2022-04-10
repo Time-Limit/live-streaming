@@ -14,8 +14,16 @@ namespace util {
 namespace rtmp {
 
 class RTMPSession : public Session {
+  // 从客户端的视角定义的
+  enum Type {
+    UNDEFINED,
+    PULL,
+    PUSH,
+  };
+
+  Type type_ = Type::UNDEFINED;
+
   enum State {
-    UNDEFINED = -1,  // 该状态并不在标准定义中
     UNINTIALIZED,
     VERSION_SENT,
     ACK_SENT,
@@ -61,8 +69,16 @@ class RTMPSession : public Session {
   uint32_t max_chunk_size_ = 128;
   uint32_t max_chunk_size_for_sending_ = 128;
 
+  uint32_t msid_for_create_stream_ = 16776960;
+
+  int32_t room_id_ = -1;
+
  public:
   bool OnRead() override;
+  void OnClose() override;
+
+  void SendMetaData(const std::vector<uint8_t> &meta_payload);
+  void SendMediaData(uint8_t type, uint32_t timestamp, const std::vector<uint8_t> &payload);
 
   uint32_t GetChunkStreamIdForSending(const Message& msg) {
     switch (msg.type) {
@@ -73,6 +89,11 @@ class RTMPSession : public Session {
       case 5:
       case 6: {
         return 2;
+      }
+      case 8:
+      case 9:
+      case 18: {
+        return 4;
       }
       case 20: {
         return 3;

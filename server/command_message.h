@@ -86,11 +86,14 @@ struct CommandMessage : public Message {
   ActionScriptObject obj1;
   ActionScriptObject obj2;
   ActionScriptObject obj3;
+  ActionScriptObject obj4;
+  ActionScriptObject obj5;
+  ActionScriptObject obj6;
+  ActionScriptObject obj7;
+  ActionScriptObject obj8;
 
   CommandMessage(const std::string& n = "", double i = 0) : name(n), id(i) {
     Message::type = 20;
-    obj1.marker = ActionScriptObject::Type::OBJECT;
-    obj2.marker = ActionScriptObject::Type::OBJECT;
   }
 
   void Serialize(ByteStream& bs) const override;

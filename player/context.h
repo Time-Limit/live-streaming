@@ -22,6 +22,7 @@ namespace player {
 
 class Context {
   // --------- reader start ---------
+  std::string uri_;
 
   // reader：从本地文件或网络获取媒体数据，通过 AVIOContext 与 decode 交互
   using Reader = ::live::util::Reader;
@@ -174,15 +175,17 @@ class Context {
    * @note
    * 在某些OS上，只能在主线程创建窗口，因此只能在主线程调用Context的构造函数。
    */
-  Context(const std::string uri, bool is_local_file) {
-    if (is_local_file) {
-      try {
-        reader_.reset(new LocalFileReader(uri));
-      } catch (const std::string& err) {
-        LOG_ERROR << err;
-        throw std::string("init reader failed");
-      }
-    }
+  Context(const std::string uri) {
+    // if (is_local_file) {
+    //   try {
+    //     reader_.reset(new LocalFileReader(uri));
+    //   } catch (const std::string& err) {
+    //     LOG_ERROR << err;
+    //     throw std::string("init reader failed");
+    //   }
+    // }
+
+    uri_ = uri;
 
     if (!InitFFmpeg()) {
       throw std::string("init ffmpeg failed");

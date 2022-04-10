@@ -214,8 +214,7 @@ static bool InitStream(OutputStream* ost, AVFormatContext* oc,
 
 Muxer::Muxer(const MuxerParam& mp) {
   muxer_param_ = mp;
-  avformat_alloc_output_context2(&format_context_, nullptr, nullptr,
-                                 filename.c_str());
+  avformat_alloc_output_context2(&format_context_, nullptr, "flv", muxer_param_.url.c_str());
   if (!format_context_) {
     throw std::string("alloc format context failed");
   }
@@ -238,7 +237,16 @@ Muxer::Muxer(const MuxerParam& mp) {
     throw std::string("init audio stream failed");
   }
 
-  av_dump_format(format_context_, 0, filename.c_str(), 1);
+  if (!(output_format_->flags & AVFMT_NOFILE)) {
+    int ret = avio_open(&format_context_->pb, muxer_param_.url.c_str(), AVIO_FLAG_WRITE);
+    if (ret < 0) {
+      LOG_ERROR << "open " << muxer_param_.url
+        << " failed, error: " << av_err2str(ret);
+      throw std::string("avio failed, url: " + muxer_param_.url);
+    }
+  }
+
+  av_dump_format(format_context_, 0, muxer_param_.url.c_str(), 1);
 
   is_alive_ = true;
   muxing_future_ = std::async(std::launch::async, [this]() {
@@ -246,14 +254,6 @@ Muxer::Muxer(const MuxerParam& mp) {
     ScopeGuard<decltype(exit_func)> guard(std::move(exit_func));
 
     int ret = 0;
-    if (!(output_format_->flags & AVFMT_NOFILE)) {
-      ret = avio_open(&format_context_->pb, filename.c_str(), AVIO_FLAG_WRITE);
-      if (ret < 0) {
-        LOG_ERROR << "open " << filename
-                  << " failed, error: " << av_err2str(ret);
-        return;
-      }
-    }
 
     /* Write the stream header, if any. */
     ret = avformat_write_header(format_context_, nullptr);

@@ -40,6 +40,9 @@ void ActionScriptObject::Serialize(ByteStream& bs) const {
       bs << marker;
       break;
     }
+    case UNINIT: {
+      break;
+    }
     default: {
       LOG_ERROR << "not handler this marker " << uint16_t(marker);
       assert(false);
@@ -106,7 +109,7 @@ void CommandMessage::Serialize(ByteStream& bs) const {
             reinterpret_cast<const uint8_t*>(&name[0]), name.size());
   bs << uint8_t(ActionScriptObject::Type::DOUBLE) << id;
 
-  bs << obj1 << obj2;
+  bs << obj1 << obj2 << obj3 << obj4 << obj5 << obj6 << obj7 << obj8;
 }
 
 void CommandMessage::Deserialize(ByteStream& bs) {
@@ -120,11 +123,16 @@ void CommandMessage::Deserialize(ByteStream& bs) {
 
   LOG_ERROR << "name: " << name << ", id: " << id;
 
-  bs >> obj1 >> obj2 >> obj3;
+  bs >> obj1 >> obj2 >> obj3 >> obj4 >> obj5 >> obj6 >> obj7 >> obj8;
 
   obj1.Output();
   obj2.Output();
   obj3.Output();
+  obj4.Output();
+  obj5.Output();
+  obj6.Output();
+  obj7.Output();
+  obj8.Output();
 }
 
 }  // namespace rtmp

@@ -17,5 +17,7 @@ DEFINE_bool(enable_debug_speaker, false, "是否开启调试用的 Speaker");
 DEFINE_bool(list_devices, false, "输出可用设备信息");
 DEFINE_bool(enable_output_pts_info, false, "输出 PTS 信息");
 
+DEFINE_string(url, "rtmp://127.0.0.1:9527", "url of rtmp server");
+
 }  // namespace recorder
 }  // namespace live

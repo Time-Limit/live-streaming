@@ -90,29 +90,36 @@ bool Context::InitFFmpeg() {
     LOG_ERROR << "alloc AVFormatContext failed";
     return false;
   }
-  const int avio_ctx_buffer_size = 4096;
-  if (!(avio_ctx_buffer_ =
-            reinterpret_cast<uint8_t*>(av_malloc(avio_ctx_buffer_size)))) {
-    LOG_ERROR << "alloc avio_ctx_buffer failed";
+
+  // const int avio_ctx_buffer_size = 4096;
+  // if (!(avio_ctx_buffer_ =
+  //           reinterpret_cast<uint8_t*>(av_malloc(avio_ctx_buffer_size)))) {
+  //   LOG_ERROR << "alloc avio_ctx_buffer failed";
+  //   return false;
+  // }
+
+  // avio_ctx_ = avio_alloc_context(avio_ctx_buffer_, avio_ctx_buffer_size, 0,
+  //                                this, &Context::ReadForAVIOContext, nullptr,
+  //                                &Context::SeekForAVIOContext);
+
+  // if (!avio_ctx_) {
+  //   LOG_ERROR << "alloc AVIOContext failed";
+  //   return false;
+  // }
+
+  ret = avio_open(&format_context_->pb, uri_.c_str(), AVIO_FLAG_READ);
+  if (ret < 0) {
+    LOG_ERROR << "open " << uri_
+      << " failed, error: " << av_err2str(ret);
     return false;
   }
-
-  avio_ctx_ = avio_alloc_context(avio_ctx_buffer_, avio_ctx_buffer_size, 0,
-                                 this, &Context::ReadForAVIOContext, nullptr,
-                                 &Context::SeekForAVIOContext);
-
-  if (!avio_ctx_) {
-    LOG_ERROR << "alloc AVIOContext failed";
-    return false;
-  }
-
-  format_context_->pb = avio_ctx_;
 
   ret = avformat_open_input(&format_context_, nullptr, nullptr, nullptr);
   if (ret == -1) {
     LOG_ERROR << "avformat_open_input failed";
     return false;
   }
+
 
   ret = avformat_find_stream_info(format_context_, nullptr);
   if (ret == -1) {

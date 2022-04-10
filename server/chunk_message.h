@@ -35,8 +35,8 @@ struct Message : public Protocol {
 
   std::vector<uint8_t> payload;
 
-  void Serialize(ByteStream&) const override {
-    throw std::runtime_error("not implemented Message::Serialize");
+  void Serialize(ByteStream& bs) const override {
+    bs << ByteStream::ConstRawPtrWrapper(&payload[0], payload.size());
   }
   void Deserialize(ByteStream&) override {
     throw std::runtime_error("not implemented Message::Deserialize");

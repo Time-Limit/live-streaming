@@ -12,7 +12,7 @@ using namespace live::util;
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  Context context(live::player::FLAGS_local_file, true);
+  Context context(live::player::FLAGS_uri);
 
   live::util::Queue<AVPacket*> audio_packet_q_;
   live::util::Queue<AVPacket*> video_packet_q_;

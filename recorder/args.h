@@ -12,6 +12,7 @@ DECLARE_bool(enable_debug_renderer);
 DECLARE_bool(enable_debug_speaker);
 DECLARE_bool(enable_output_pts_info);
 DECLARE_bool(list_devices);
+DECLARE_string(url);
 
 }  // namespace recorder
 }  // namespace live

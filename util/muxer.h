@@ -43,13 +43,15 @@ struct MuxerParam {
   int64_t video_height = 0;
   AVPixelFormat video_pix_fmt = AV_PIX_FMT_NONE;
   AVRational video_time_base = {0, 1};
+
+  // output url
+  std::string url;
 };
 
 class Muxer {
   AVFormatContext* format_context_ = nullptr;
   const AVOutputFormat* output_format_ = nullptr;
   OutputStream video_st_ = {0}, audio_st_ = {0};
-  const std::string filename = "./test.flv";
   MuxerParam muxer_param_;
 
   VideoScaleHelper video_scale_helper_;

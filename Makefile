@@ -13,7 +13,7 @@ util_objs = ./util/audio_resample_helper.o ./util/decoder.o ./util/env.o ./util/
 # 先注释了，这个模块是之前在 Linux 上编写的，内部基于 epoll 实现的，没法在 OS X 上用。使用 libevent 代替吧。
 #util_net_objs = ./util/net/log.o ./util/net/neter.o ./util/net/octets.o ./util/net/session.o ./util/net/threadpool.o
 
-player.bin: $(util_objs)
+player.bin: $(util_objs) player/main.cc player/context.cc player/args.cc
 	g++ -o player.bin $(util_objs) player/main.cc player/context.cc player/args.cc $(inls) $(args) $(lds) $(frameworks)
 
 recorder.bin: $(util_objs)
@@ -31,4 +31,4 @@ server.bin: $(util_objs) $(util_net_objs) $(server_objs)
 	g++ -c $^ -o $@ $(inls) $(args)
 
 clean:
-	rm -rf $(util_objs) $(util_net_objs) $(server_objs) player.bin* recorder.bin* server.bin*
+	rm -rf $(util_objs) $(util_net_objs) $(server_objs)

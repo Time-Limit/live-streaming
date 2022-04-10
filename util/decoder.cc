@@ -64,7 +64,7 @@ bool Decoder::DecodeVideoPacket(const AVStream* stream, AVCodecContext* ctx,
 bool Decoder::DecodeAudioPacket(const AVStream* stream, AVCodecContext* ctx,
                                 const AVPacket* pkt,
                                 std::vector<AVFrameWrapper>* samples) {
-  auto callback = [stream, samples, pkt](const AVFrame* av_frame) -> bool {
+  auto callback = [stream, samples](const AVFrame* av_frame) -> bool {
     // enum AVSampleFormat 定义参见 FFmpeg/libavutil/samplefmt.h
     std::vector<uint8_t> sample_data;
 
@@ -72,13 +72,13 @@ bool Decoder::DecodeAudioPacket(const AVStream* stream, AVCodecContext* ctx,
     AVFrameWrapper& sample = samples->back();
     sample->time_base = stream->time_base;
 
-    LOG_ERROR << "audio, pts in AVFrame: " << av_frame->pts
-              << ", stream->time_base: " << stream->time_base.num << "/"
-              << stream->time_base.den
-              << ", best_effort_timestamp: " << av_frame->best_effort_timestamp
-              << ", pts in pkt: " << pkt->pts << ", dts in pkt: " << pkt->dts
-              << ", sample_number: " << av_frame->nb_samples
-              << ", sampel_rate: " << av_frame->sample_rate;
+    // LOG_ERROR << "audio, pts in AVFrame: " << av_frame->pts
+    //           << ", stream->time_base: " << stream->time_base.num << "/"
+    //           << stream->time_base.den
+    //           << ", best_effort_timestamp: " << av_frame->best_effort_timestamp
+    //           << ", pts in pkt: " << pkt->pts << ", dts in pkt: " << pkt->dts
+    //           << ", sample_number: " << av_frame->nb_samples
+    //           << ", sampel_rate: " << av_frame->sample_rate;
 
     return true;
   };

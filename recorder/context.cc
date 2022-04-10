@@ -154,6 +154,8 @@ Context::Context() {
   muxer_param.video_pix_fmt = filter_->GetOutputParam().pix_fmt;
   muxer_param.video_time_base = filter_->GetOutputParam().time_base;
 
+  muxer_param.url = FLAGS_url;
+
   muxer_.reset(new util::Muxer(muxer_param));
 
   for (auto& input : input_videos_) {

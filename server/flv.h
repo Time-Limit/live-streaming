@@ -56,7 +56,6 @@ struct TagHeader : public Protocol {
        << ByteStream::ConstIntegerSizeWrapper(timestamp, 3)
        << uint8_t(timestamp >> 24)
        << ByteStream::ConstIntegerSizeWrapper(stream_id, 3);
-    LOG_ERROR << "timestamp: " << timestamp;
   }
 };
 
