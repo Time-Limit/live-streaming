@@ -187,6 +187,13 @@ void RTMPSession::HandleMessage(uint32_t csid, Message&& msg) {
       case 18: {
         try {
           RoomManager::GetInstance().InitMetaData(room_id_, msg.payload);
+          ByteStream bs(msg.payload);
+          while (bs.Remain()) {
+            ActionScriptObject obj;
+            LOG_ERROR << "next object";
+            bs >> obj;
+            obj.Output();
+          }
           break;
         } catch (...) {
           LOG_ERROR << "parse ActionScriptObject failed";

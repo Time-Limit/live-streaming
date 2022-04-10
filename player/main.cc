@@ -6,8 +6,17 @@
 #include "util/speaker.h"
 #include "util/util.h"
 
+#include <csignal>
+
 using namespace live::player;
 using namespace live::util;
+
+bool quit_flag = false;
+
+void signal_handler(int signal) {
+  LOG_ERROR << "received signal, i will quit";
+  quit_flag = true;
+}
 
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -17,10 +26,7 @@ int main(int argc, char** argv) {
   live::util::Queue<AVPacket*> audio_packet_q_;
   live::util::Queue<AVPacket*> video_packet_q_;
 
-  bool quit_flag = false;
-  bool read_finish_flag = false;
-
-  auto read_func = [&read_finish_flag, &quit_flag, &context, &audio_packet_q_,
+  auto read_func = [&context, &audio_packet_q_,
                     &video_packet_q_]() mutable {
     while (!quit_flag) {
       AVPacket* packet = av_packet_alloc();
@@ -44,15 +50,15 @@ int main(int argc, char** argv) {
     }
     video_packet_q_.Put(nullptr);
     audio_packet_q_.Put(nullptr);
-    read_finish_flag = true;
+    quit_flag = true;
   };
+  LOG_ERROR << "start reading";
   auto read_future = std::async(std::launch::async, std::move(read_func));
 
   Renderer renderer([&context](const AVFrameWrapper& frame) {
     return context.CalcDelayTimeInMicroSecond(frame);
   });
-  auto decode_video_packet_func = [&context, &video_packet_q_, &renderer,
-                                   &quit_flag]() {
+  auto decode_video_packet_func = [&context, &video_packet_q_, &renderer]() {
     Decoder decoder;
     AVPacket* packet = nullptr;
     std::vector<AVFrameWrapper> frames;
@@ -75,6 +81,7 @@ int main(int argc, char** argv) {
       packet = nullptr;
     }
   };
+  LOG_ERROR << "start video decoding";
   auto video_decoder_future =
       std::async(std::launch::async, std::move(decode_video_packet_func));
 
@@ -83,8 +90,7 @@ int main(int argc, char** argv) {
     // context.UpdatePlayingTimeInterval(sample.GetSideData().pts,
     // sample.GetSideData().duration);
   });
-  auto decode_audio_packet_func = [&context, &audio_packet_q_, &speaker,
-                                   &quit_flag]() {
+  auto decode_audio_packet_func = [&context, &audio_packet_q_, &speaker]() {
     Decoder decoder;
     AVPacket* packet = nullptr;
     std::vector<AVFrameWrapper> samples;
@@ -108,8 +114,11 @@ int main(int argc, char** argv) {
       packet = nullptr;
     }
   };
+  LOG_ERROR << "start audio decoding";
   auto audio_decoder_future =
       std::async(std::launch::async, std::move(decode_audio_packet_func));
+
+  std::signal(SIGINT, signal_handler);
 
   live::util::WaitSDLEventUntilCheckerReturnFalse(
       [p_qf = &quit_flag, p_r = &renderer, p_s = &speaker]() {

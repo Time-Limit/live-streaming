@@ -89,6 +89,8 @@ bool Context::InitFFmpeg() {
   if (!(format_context_ = avformat_alloc_context())) {
     LOG_ERROR << "alloc AVFormatContext failed";
     return false;
+  } else {
+    LOG_ERROR << "avformat_alloc_context success";
   }
 
   // const int avio_ctx_buffer_size = 4096;
@@ -111,18 +113,27 @@ bool Context::InitFFmpeg() {
   if (ret < 0) {
     LOG_ERROR << "open " << uri_ << " failed, error: " << av_err2str(ret);
     return false;
+  } else {
+    LOG_ERROR << "avio_open success";
   }
 
-  ret = avformat_open_input(&format_context_, nullptr, nullptr, nullptr);
+  AVDictionary* avdic = NULL;
+  av_dict_set(&avdic, "probesize", "2048", 0);
+  av_dict_set(&avdic, "max_analyze_duration", "1000", 0);
+  ret = avformat_open_input(&format_context_, nullptr, nullptr, &avdic);
   if (ret == -1) {
     LOG_ERROR << "avformat_open_input failed";
     return false;
+  } else {
+    LOG_ERROR << "avformat_open_input success";
   }
 
   ret = avformat_find_stream_info(format_context_, nullptr);
   if (ret == -1) {
     LOG_ERROR << "avformat_find_stream_info failed";
     return false;
+  } else {
+    LOG_ERROR << "avformat_find_stream_info success";
   }
 
   av_dump_format(format_context_, 0, nullptr, 0);
