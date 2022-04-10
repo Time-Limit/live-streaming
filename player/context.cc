@@ -109,8 +109,7 @@ bool Context::InitFFmpeg() {
 
   ret = avio_open(&format_context_->pb, uri_.c_str(), AVIO_FLAG_READ);
   if (ret < 0) {
-    LOG_ERROR << "open " << uri_
-      << " failed, error: " << av_err2str(ret);
+    LOG_ERROR << "open " << uri_ << " failed, error: " << av_err2str(ret);
     return false;
   }
 
@@ -119,7 +118,6 @@ bool Context::InitFFmpeg() {
     LOG_ERROR << "avformat_open_input failed";
     return false;
   }
-
 
   ret = avformat_find_stream_info(format_context_, nullptr);
   if (ret == -1) {

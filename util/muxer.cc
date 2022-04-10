@@ -214,7 +214,8 @@ static bool InitStream(OutputStream* ost, AVFormatContext* oc,
 
 Muxer::Muxer(const MuxerParam& mp) {
   muxer_param_ = mp;
-  avformat_alloc_output_context2(&format_context_, nullptr, "flv", muxer_param_.url.c_str());
+  avformat_alloc_output_context2(&format_context_, nullptr, "flv",
+                                 muxer_param_.url.c_str());
   if (!format_context_) {
     throw std::string("alloc format context failed");
   }
@@ -238,10 +239,11 @@ Muxer::Muxer(const MuxerParam& mp) {
   }
 
   if (!(output_format_->flags & AVFMT_NOFILE)) {
-    int ret = avio_open(&format_context_->pb, muxer_param_.url.c_str(), AVIO_FLAG_WRITE);
+    int ret = avio_open(&format_context_->pb, muxer_param_.url.c_str(),
+                        AVIO_FLAG_WRITE);
     if (ret < 0) {
       LOG_ERROR << "open " << muxer_param_.url
-        << " failed, error: " << av_err2str(ret);
+                << " failed, error: " << av_err2str(ret);
       throw std::string("avio failed, url: " + muxer_param_.url);
     }
   }

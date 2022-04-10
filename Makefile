@@ -13,11 +13,15 @@ util_objs = ./util/audio_resample_helper.o ./util/decoder.o ./util/env.o ./util/
 # 先注释了，这个模块是之前在 Linux 上编写的，内部基于 epoll 实现的，没法在 OS X 上用。使用 libevent 代替吧。
 #util_net_objs = ./util/net/log.o ./util/net/neter.o ./util/net/octets.o ./util/net/session.o ./util/net/threadpool.o
 
-player.bin: $(util_objs) player/main.cc player/context.cc player/args.cc
-	g++ -o player.bin $(util_objs) player/main.cc player/context.cc player/args.cc $(inls) $(args) $(lds) $(frameworks)
+player_objs = player/main.o player/context.o player/args.o
 
-recorder.bin: $(util_objs)
-	g++ -o recorder.bin $(util_objs) recorder/main.cc recorder/context.cc recorder/args.cc recorder/base.cc $(inls) $(args) $(lds) $(frameworks)
+player.bin: $(util_objs) $(player_objs)
+	g++ -o player.bin $(util_objs) $(player_objs) $(inls) $(args) $(lds) $(frameworks)
+
+recorder_objs = recorder/main.o recorder/context.o recorder/args.o recorder/base.o
+
+recorder.bin: $(util_objs) $(recorder_objs)
+	g++ -o recorder.bin $(util_objs) $(recorder_objs) $(inls) $(args) $(lds) $(frameworks)
 
 server_objs = server/main.o server/net.o server/rtmp.o server/stream.o server/command_message.o server/chunk_message.o
 

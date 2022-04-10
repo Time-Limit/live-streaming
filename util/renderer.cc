@@ -141,7 +141,7 @@ void Renderer::Render() {
 
     int64_t delay_time = delay_time_calculator_(frame);
 
-    //LOG_ERROR << "pts: " << frame->pts << ", delay: " << delay_time
+    // LOG_ERROR << "pts: " << frame->pts << ", delay: " << delay_time
     // << ", height: " << frame->height
     // << ", width: " << frame->width
     // << ", linesize: " << frame->linesize[0]

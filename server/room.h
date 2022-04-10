@@ -1,12 +1,12 @@
 #pragma once
 
-#include "util/queue.h"
 #include "server/rtmp.h"
+#include "util/queue.h"
 
-#include <vector>
 #include <tuple>
-#include <unordered_set>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace live {
 namespace util {
@@ -16,16 +16,16 @@ class Room {
 
   bool is_alive_;
 
-  std::unordered_set<rtmp::RTMPSession *> visitors_;
+  std::unordered_set<rtmp::RTMPSession*> visitors_;
 
-public:
+ public:
   Room() : is_alive_(true) {}
 
   ~Room() {
     is_alive_ = false;
   }
 
-  void InitMetaData(const std::vector<uint8_t> &mp) {
+  void InitMetaData(const std::vector<uint8_t>& mp) {
     meta_payload_ = mp;
     // broadcast to all visitors
     for (auto v : visitors_) {
@@ -33,14 +33,15 @@ public:
     }
   }
 
-  void AddData(uint8_t type, uint32_t timestamp, const std::vector<uint8_t> &payload) {
+  void AddData(uint8_t type, uint32_t timestamp,
+               const std::vector<uint8_t>& payload) {
     // broadcast to all visitors
     for (auto v : visitors_) {
       v->SendMediaData(type, timestamp, payload);
     }
   }
 
-  bool Enter(rtmp::RTMPSession *session) {
+  bool Enter(rtmp::RTMPSession* session) {
     if (!is_alive_) {
       return false;
     }
@@ -51,7 +52,7 @@ public:
     return visitors_.insert(session).second;
   }
 
-  void Leave(rtmp::RTMPSession *session) {
+  void Leave(rtmp::RTMPSession* session) {
     if (!is_alive_) {
       return;
     }
@@ -61,11 +62,11 @@ public:
 
 class RoomManager {
   RoomManager() : id_pool_{0, 1, 2, 3}, rooms_(id_pool_.size()) {}
-  RoomManager(const RoomManager &) = delete;
-  RoomManager& operator=(const RoomManager &) = delete;
+  RoomManager(const RoomManager&) = delete;
+  RoomManager& operator=(const RoomManager&) = delete;
 
   std::unordered_set<int32_t> id_pool_;
-  std::vector<Room *> rooms_;
+  std::vector<Room*> rooms_;
 
  public:
   static RoomManager& GetInstance() {
@@ -86,7 +87,8 @@ class RoomManager {
 
   void CloseRoom(int32_t room_id) {
     if (room_id < 0 || room_id >= rooms_.size()) {
-      LOG_ERROR << "invalid room id " << room_id << ", it should be between 0 and " << rooms_.size()-1;
+      LOG_ERROR << "invalid room id " << room_id
+                << ", it should be between 0 and " << rooms_.size() - 1;
       return;
     }
     if (id_pool_.count(room_id)) {
@@ -98,24 +100,25 @@ class RoomManager {
     id_pool_.insert(room_id);
   }
 
-  bool EnterRoom(int32_t room_id, rtmp::RTMPSession *session) {
+  bool EnterRoom(int32_t room_id, rtmp::RTMPSession* session) {
     return rooms_[room_id] && rooms_[room_id]->Enter(session);
   }
 
-  void LeaveRoom(int32_t room_id, rtmp::RTMPSession *session) {
+  void LeaveRoom(int32_t room_id, rtmp::RTMPSession* session) {
     if (rooms_[room_id]) {
       rooms_[room_id]->Leave(session);
     }
   }
 
-  void InitMetaData(int32_t room_id, const std::vector<uint8_t> &mp) {
+  void InitMetaData(int32_t room_id, const std::vector<uint8_t>& mp) {
     rooms_[room_id]->InitMetaData(mp);
   }
 
-  void AddData(int32_t room_id, uint8_t type, uint32_t timestamp, const std::vector<uint8_t> &payload) {
+  void AddData(int32_t room_id, uint8_t type, uint32_t timestamp,
+               const std::vector<uint8_t>& payload) {
     rooms_[room_id]->AddData(type, timestamp, payload);
   }
 };
 
-}
-}
+}  // namespace util
+}  // namespace live

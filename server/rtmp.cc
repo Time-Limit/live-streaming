@@ -8,7 +8,7 @@ namespace live {
 namespace util {
 namespace rtmp {
 
-void RTMPSession::SendMetaData(const std::vector<uint8_t> &meta_payload) {
+void RTMPSession::SendMetaData(const std::vector<uint8_t>& meta_payload) {
   try {
     Message msg;
     msg.type = 18;
@@ -16,14 +16,16 @@ void RTMPSession::SendMetaData(const std::vector<uint8_t> &meta_payload) {
     msg.stream_id = msid_for_create_stream_;
     msg.payload_length = meta_payload.size();
     msg.payload = meta_payload;
-    ByteStream(WriteDataBuffer()) << ChunkSerializeHelper(this, std::move(msg)) << ByteStream::Commit();
+    ByteStream(WriteDataBuffer())
+        << ChunkSerializeHelper(this, std::move(msg)) << ByteStream::Commit();
     Write();
   } catch (...) {
     LOG_ERROR << "catch exception";
   }
 }
 
-void RTMPSession::SendMediaData(uint8_t type, uint32_t timestamp, const std::vector<uint8_t> &payload) {
+void RTMPSession::SendMediaData(uint8_t type, uint32_t timestamp,
+                                const std::vector<uint8_t>& payload) {
   try {
     Message msg;
     msg.type = type;
@@ -31,7 +33,8 @@ void RTMPSession::SendMediaData(uint8_t type, uint32_t timestamp, const std::vec
     msg.stream_id = msid_for_create_stream_;
     msg.payload_length = payload.size();
     msg.payload = payload;
-    ByteStream(WriteDataBuffer()) << ChunkSerializeHelper(this, std::move(msg)) << ByteStream::Commit();
+    ByteStream(WriteDataBuffer())
+        << ChunkSerializeHelper(this, std::move(msg)) << ByteStream::Commit();
     Write();
   } catch (...) {
     LOG_ERROR << "catch exception";
@@ -43,9 +46,10 @@ void RTMPSession::HandleCommandMessage(uint32_t csid, const Message& msg,
   if (command.name == "connect") {
     auto it = command.obj1.dict_value.find("tcUrl");
     if (it != command.obj1.dict_value.end()) {
-      const auto &str = it->second->string_value;
+      const auto& str = it->second->string_value;
       room_id_ = 0;
-      for (int i = str.size()-1; i >= 0 && '0' <= str[i] && str[i] <= '9'; i++) {
+      for (int i = str.size() - 1; i >= 0 && '0' <= str[i] && str[i] <= '9';
+           i++) {
         (room_id_ *= 10) += (str[i] - '0');
       }
     }
@@ -55,16 +59,14 @@ void RTMPSession::HandleCommandMessage(uint32_t csid, const Message& msg,
     cmd.obj2.marker = ActionScriptObject::Type::OBJECT;
     bs << ChunkSerializeHelper(this, AckWindowSize(1024))
        << ChunkSerializeHelper(this, SetPeerBandwidth(1024, 1))
-       << ChunkSerializeHelper(this, std::move(cmd))
-       << ByteStream::Commit();
+       << ChunkSerializeHelper(this, std::move(cmd)) << ByteStream::Commit();
   } else if (command.name == "releaseStream" || command.name == "FCPublish" ||
              command.name == "FCUnpublish") {
     CommandMessage cmd("_result", command.id);
     cmd.obj1.marker = ActionScriptObject::Type::OBJECT;
     cmd.obj2.marker = ActionScriptObject::Type::OBJECT;
     ByteStream(WriteDataBuffer())
-        << ChunkSerializeHelper(this, std::move(cmd))
-        << ByteStream::Commit();
+        << ChunkSerializeHelper(this, std::move(cmd)) << ByteStream::Commit();
   } else if (command.name == "createStream") {
     CommandMessage cm("_result", command.id);
     cm.obj1.marker = ActionScriptObject::Type::NULL_TYPE;
@@ -77,7 +79,6 @@ void RTMPSession::HandleCommandMessage(uint32_t csid, const Message& msg,
     ByteStream(WriteDataBuffer())
         << ChunkSerializeHelper(this, std::move(cm)) << ByteStream::Commit();
   } else if (command.name == "publish") {
-
     if (type_ == Type::UNDEFINED) {
       type_ = Type::PUSH;
     } else {
@@ -93,7 +94,7 @@ void RTMPSession::HandleCommandMessage(uint32_t csid, const Message& msg,
       return;
     }
 
-    LOG_ERROR << "crate room success, room_id: " <<  room_id_;
+    LOG_ERROR << "crate room success, room_id: " << room_id_;
 
     CommandMessage cm("onStatus", command.id);
 
@@ -156,7 +157,8 @@ void RTMPSession::HandleCommandMessage(uint32_t csid, const Message& msg,
 
     ByteStream(WriteDataBuffer())
         << ChunkSerializeHelper(this, std::move(cm)) << ByteStream::Commit();
-  } else if (command.name == "deleteStream" || command.name == "getStreamLength") {
+  } else if (command.name == "deleteStream" ||
+             command.name == "getStreamLength") {
     // response nothing
   } else {
     LOG_ERROR << "not handle this command " << command.name;
@@ -178,7 +180,8 @@ void RTMPSession::HandleMessage(uint32_t csid, Message&& msg) {
       }
       case 8:
       case 9: {
-        RoomManager::GetInstance().AddData(room_id_, msg.type, msg.timestamp, msg.payload);
+        RoomManager::GetInstance().AddData(room_id_, msg.type, msg.timestamp,
+                                           msg.payload);
         break;
       }
       case 18: {
@@ -196,7 +199,8 @@ void RTMPSession::HandleMessage(uint32_t csid, Message&& msg) {
           ByteStream(msg.payload) >> command;
           HandleCommandMessage(csid, msg, command);
         } catch (...) {
-          LOG_ERROR << "invalid command, msg.payload.size: " << msg.payload.size();
+          LOG_ERROR << "invalid command, msg.payload.size: "
+                    << msg.payload.size();
           ByteStream(msg.payload).DumpBytes(300);
           Session::SetFlag(Session::FLAG::NEED_CLOSE);
         }
@@ -322,10 +326,11 @@ bool RTMPSession::OnReadInHandeShakeDoneState() {
     ByteStream bs(ReadDataBuffer());
     bs >> chunk_header;
 
-    //LOG_ERROR << "chunk_header.basic.format: " << uint16_t(chunk_header.basic.format)
+    // LOG_ERROR << "chunk_header.basic.format: " <<
+    // uint16_t(chunk_header.basic.format)
     //  << ", csid: " << chunk_header.basic.chunk_stream_id;
 
-    //LOG_ERROR << "timestamp: " << chunk_header.common.timestamp
+    // LOG_ERROR << "timestamp: " << chunk_header.common.timestamp
     //  << ", stream_id: " << chunk_header.common.message_stream_id
     //  << ", payload_length: " << chunk_header.common.length
     //  << ", type: " << uint16_t(chunk_header.common.type);
@@ -429,7 +434,7 @@ bool RTMPSession::OnReadInHandeShakeDoneState() {
     previous_chunk_commons_[chunk_header.basic.chunk_stream_id] =
         chunk_header.common;
 
-    //LOG_ERROR << "chunk received, csid: "
+    // LOG_ERROR << "chunk received, csid: "
     //  << chunk_header.basic.chunk_stream_id
     //  << ", msid: " << chunk_header.common.message_stream_id
     //  << ", delta: " << chunk_header.common.timestamp
@@ -444,7 +449,7 @@ bool RTMPSession::OnReadInHandeShakeDoneState() {
     }
 
     if (msg->payload.size() == msg->payload_length) {
-      //LOG_ERROR << "message received, csid: "
+      // LOG_ERROR << "message received, csid: "
       //          << chunk_header.basic.chunk_stream_id
       //          << ", msid: " << msg->stream_id
       //          << ", type: " << uint32_t(msg->type)

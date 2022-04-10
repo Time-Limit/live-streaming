@@ -125,12 +125,14 @@ void ChunkSerializeHelper::Serialize(ByteStream& bs) const {
     if (message.timestamp) {
       header.common.timestamp = message.timestamp;
     } else {
-      header.common.timestamp = GetPassedTimeSinceStartedInMicroSeconds() / 1000;
+      header.common.timestamp =
+          GetPassedTimeSinceStartedInMicroSeconds() / 1000;
     }
     if (message.stream_id) {
       header.common.message_stream_id = message.stream_id;
     } else {
-      header.common.message_stream_id = GetPassedTimeSinceStartedInMicroSeconds();
+      header.common.message_stream_id =
+          GetPassedTimeSinceStartedInMicroSeconds();
     }
   } else {
     header.common.timestamp = 0;

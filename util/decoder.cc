@@ -52,7 +52,7 @@ bool Decoder::DecodeVideoPacket(const AVStream* stream, AVCodecContext* ctx,
     AVFrameWrapper& frame = frames->back();
     frame->time_base = stream->time_base;
 
-    //LOG_ERROR << "video, pts in AVFrame: " << frame->pts
+    // LOG_ERROR << "video, pts in AVFrame: " << frame->pts
     //          << ", stream->time_base: " << stream->time_base.num << "/"
     //          << stream->time_base.den;
 
@@ -75,7 +75,8 @@ bool Decoder::DecodeAudioPacket(const AVStream* stream, AVCodecContext* ctx,
     // LOG_ERROR << "audio, pts in AVFrame: " << av_frame->pts
     //           << ", stream->time_base: " << stream->time_base.num << "/"
     //           << stream->time_base.den
-    //           << ", best_effort_timestamp: " << av_frame->best_effort_timestamp
+    //           << ", best_effort_timestamp: " <<
+    //           av_frame->best_effort_timestamp
     //           << ", pts in pkt: " << pkt->pts << ", dts in pkt: " << pkt->dts
     //           << ", sample_number: " << av_frame->nb_samples
     //           << ", sampel_rate: " << av_frame->sample_rate;

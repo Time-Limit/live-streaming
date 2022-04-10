@@ -44,7 +44,7 @@ class Context {
   AVCodecContext* video_dec_ctx_ = nullptr;
   AVCodecContext* audio_dec_ctx_ = nullptr;
 
-  uint8_t* avio_ctx_buffer_ = nullptr;
+  // uint8_t* avio_ctx_buffer_ = nullptr;
   // size_t avio_ctx_buffer_size_ = -1;
 
   AVIOContext* avio_ctx_ = nullptr;
@@ -160,7 +160,7 @@ class Context {
         frame->pts * 1000000L * frame->time_base.num / frame->time_base.den;
     int64_t duration = frame->nb_samples * double(1000.0) / frame->sample_rate;
     playing_time_interval_.store({start, duration, alive_micro_seconds_});
-    //LOG_ERROR << "start: " << start << ", duration: " << duration
+    // LOG_ERROR << "start: " << start << ", duration: " << duration
     //          << ", alive_micro_seconds_: " << alive_micro_seconds_
     //          << ", pts: " << frame->pts << ", num: " << frame->time_base.num
     //          << ", den: " << frame->time_base.den

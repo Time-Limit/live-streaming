@@ -77,8 +77,9 @@ class RTMPSession : public Session {
   bool OnRead() override;
   void OnClose() override;
 
-  void SendMetaData(const std::vector<uint8_t> &meta_payload);
-  void SendMediaData(uint8_t type, uint32_t timestamp, const std::vector<uint8_t> &payload);
+  void SendMetaData(const std::vector<uint8_t>& meta_payload);
+  void SendMediaData(uint8_t type, uint32_t timestamp,
+                     const std::vector<uint8_t>& payload);
 
   uint32_t GetChunkStreamIdForSending(const Message& msg) {
     switch (msg.type) {
