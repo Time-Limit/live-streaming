@@ -227,7 +227,6 @@ bool RTMPSession::SendS0AndS1() {
     HandshakeMessage0 s0;
     s0.version = 3;
 
-    HandshakeMessage1 s1;
     s1.timestamp = GetPassedTimeSinceStartedInMicroSeconds() / 1000;
     s1.timestamp_sent = 0;
 
@@ -247,9 +246,8 @@ bool RTMPSession::SendS0AndS1() {
 
 bool RTMPSession::SendS2() {
   {
-    HandshakeMessage2 s2;
-    s2.timestamp = GetPassedTimeSinceStartedInMicroSeconds() / 1000;
-    s2.timestamp_sent = c1.timestamp;
+    s2.timestamp = c1.timestamp;
+    s2.timestamp_sent = s1.timestamp;
     memcpy(s2.random_data, c1.random_data, sizeof(s2.random_data));
 
     ByteStream(WriteDataBuffer()) << s2 << ByteStream::Commit();

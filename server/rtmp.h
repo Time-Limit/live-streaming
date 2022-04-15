@@ -44,6 +44,9 @@ class RTMPSession : public Session {
   HandshakeMessage1 c1;
   HandshakeMessage2 c2;
 
+  HandshakeMessage1 s1;
+  HandshakeMessage2 s2;
+
   // 总是拼凑一个完整的 ChunkHeader::Common
   std::unordered_map<uint32_t, ChunkHeader::Common> previous_chunk_commons_;
   std::unordered_map<uint64_t, uint32_t> message_previous_timestamp_;
